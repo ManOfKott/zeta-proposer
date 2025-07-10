@@ -1,0 +1,513 @@
+# Zeta Proposer - Section Descriptions
+# This file contains detailed descriptions for each section of the technical concept document.
+# Edit this file to customize the content requirements for each section.
+# The descriptions will be dynamically loaded before each AI prompt.
+#
+# Format:
+# [section_key]
+# Section: Section Title
+# Description:
+# Your multiline description here...
+# Can span multiple lines...
+# Until the next section starts with [section_key]
+
+[system_scope]
+Section: System Scope and Boundaries
+Description:
+This section defines the complete scope and boundaries of the system to be developed. It should provide a comprehensive understanding of what the system will and will not include.
+
+Business Context and Objectives:
+- Clearly articulate the primary business objectives and success criteria
+- Identify the key business problems this system will solve
+- Describe the expected business value and ROI
+- Explain how this system fits into the broader business strategy
+
+Stakeholder Analysis:
+- Identify all primary and secondary stakeholders
+- Define user personas with their roles, responsibilities, and needs
+- Describe stakeholder expectations and requirements
+- Explain how different stakeholders will interact with the system
+
+System Boundaries:
+- Define what is included within the system scope
+- Clearly specify what is excluded from the system scope
+- Identify external systems and dependencies
+- Describe the system's interfaces with external entities
+
+Functional Requirements:
+- List the core functional capabilities the system must provide
+- Describe key user workflows and processes
+- Identify critical business functions and features
+- Explain how the system will support business operations
+
+Non-Functional Requirements:
+- Define performance expectations and constraints
+- Specify security requirements and compliance needs
+- Describe scalability and availability requirements
+- Identify integration requirements with existing systems
+
+Technical Constraints:
+- List any technical limitations or constraints
+- Describe infrastructure and platform requirements
+- Identify technology stack limitations
+- Explain deployment and operational constraints
+
+Success Criteria:
+- Define measurable success criteria for the system
+- Describe how success will be evaluated
+- Identify key performance indicators
+- Explain the expected outcomes and benefits
+
+(The diagram for this section will be generated separately based on the section content and requirements.)
+
+[architecture_tech_stack]
+Section: Architecture and Technology Stack
+Description:
+This section provides a comprehensive technical architecture and technology stack for the system. It should demonstrate a well-thought-out technical approach that aligns with business requirements.
+
+Architecture Overview:
+- Describe the overall architectural pattern (microservices, monolith, hybrid, etc.)
+- Explain the rationale behind the chosen architecture
+- Describe how the architecture supports scalability and maintainability
+- Identify the key architectural principles and patterns used
+
+Technology Stack Selection:
+- Detail the programming languages and frameworks chosen
+- Explain the rationale for each technology selection
+- Describe how the technology stack supports business requirements
+- Identify any technology constraints or limitations
+
+Component Architecture:
+- Describe the main system components and their responsibilities
+- Explain how components interact and communicate
+- Define the data flow between components
+- Describe the modularity and separation of concerns
+
+Data Architecture:
+- Describe the data storage strategy and database design
+- Explain data models and relationships
+- Describe data access patterns and caching strategies
+- Identify data security and privacy considerations
+
+Communication and Integration:
+- Describe how components communicate (APIs, messaging, etc.)
+- Explain integration patterns with external systems
+- Describe event-driven architecture if applicable
+- Identify communication protocols and standards
+
+Security Architecture:
+- Describe the security model and authentication mechanisms
+- Explain authorization and access control strategies
+- Describe data encryption and security measures
+- Identify compliance and regulatory requirements
+
+Performance and Scalability:
+- Describe performance optimization strategies
+- Explain scalability approaches and load balancing
+- Describe caching and optimization techniques
+- Identify performance monitoring and metrics
+
+Deployment Architecture:
+- Describe the deployment model and infrastructure
+- Explain containerization and orchestration strategies
+- Describe environment management and configuration
+- Identify deployment automation and CI/CD integration
+
+Technology Stack Details:
+- Frontend technologies and frameworks
+- Backend technologies and frameworks
+- Database and storage solutions
+- Middleware and messaging systems
+- Monitoring and logging tools
+- Development and testing tools
+
+(The diagram for this section will be generated separately based on the section content and requirements.)
+
+[external_interfaces]
+Section: System-external Interfaces and Integrations
+Description:
+This section describes all external interfaces and integrations that the system will have with other systems, services, and external entities.
+
+External System Overview:
+- Identify all external systems and services the system will integrate with
+- Describe the purpose and role of each external system
+- Explain the business value of each integration
+- Identify the criticality and priority of each interface
+
+API Design and Specifications:
+- Describe the API design principles and patterns used
+- Specify REST, GraphQL, or other API protocols
+- Define API endpoints, methods, and data formats
+- Describe API versioning and backward compatibility strategies
+
+Authentication and Authorization:
+- Describe authentication mechanisms for external interfaces
+- Explain API key management and security protocols
+- Describe OAuth, JWT, or other token-based authentication
+- Identify authorization levels and access controls
+
+Data Exchange and Formats:
+- Describe data formats and standards used (JSON, XML, etc.)
+- Explain data validation and transformation requirements
+- Describe error handling and retry mechanisms
+- Identify data mapping and conversion strategies
+
+Integration Patterns:
+- Describe synchronous vs asynchronous integration patterns
+- Explain event-driven integration and messaging
+- Describe webhook implementations and callbacks
+- Identify real-time vs batch processing approaches
+
+Error Handling and Resilience:
+- Describe error handling strategies for external interfaces
+- Explain retry mechanisms and circuit breaker patterns
+- Describe fallback strategies and graceful degradation
+- Identify monitoring and alerting for integration failures
+
+Performance and Reliability:
+- Describe performance requirements for external interfaces
+- Explain timeout and connection management
+- Describe rate limiting and throttling strategies
+- Identify SLA requirements and monitoring
+
+Security Considerations:
+- Describe data encryption in transit and at rest
+- Explain certificate management and SSL/TLS requirements
+- Describe network security and firewall configurations
+- Identify compliance requirements for data exchange
+
+Monitoring and Observability:
+- Describe monitoring strategies for external interfaces
+- Explain logging and tracing requirements
+- Describe alerting and notification mechanisms
+- Identify metrics and KPIs for integration health
+
+Third-Party Services:
+- Identify any third-party services or APIs being used
+- Describe service level agreements and support
+- Explain vendor selection criteria and evaluation
+- Identify backup and alternative service providers
+
+Compliance and Governance:
+- Describe regulatory compliance requirements
+- Explain data governance and privacy considerations
+- Describe audit and logging requirements
+- Identify industry standards and best practices
+
+Do NOT add any other content.
+
+[ci_cd]
+Section: CI/CD Pipelines
+Description:
+This section describes the continuous integration and continuous deployment pipeline that will be used for the system development and deployment.
+
+Pipeline Overview:
+- Describe the overall CI/CD strategy and approach
+- Explain the benefits and goals of the CI/CD implementation
+- Describe the pipeline stages and workflow
+- Identify the tools and technologies used in the pipeline
+
+Source Code Management:
+- Describe the source code repository structure and organization
+- Explain branching strategies and version control workflows
+- Describe code review processes and quality gates
+- Identify access controls and security measures
+
+Build Process:
+- Describe the build automation and compilation process
+- Explain dependency management and package handling
+- Describe build optimization and parallelization strategies
+- Identify build artifacts and their management
+
+Testing Strategy:
+- Describe automated testing approaches and frameworks
+- Explain unit, integration, and end-to-end testing
+- Describe test data management and environment setup
+- Identify test coverage requirements and quality metrics
+
+Security Scanning:
+- Describe security scanning tools and vulnerability assessment
+- Explain static and dynamic code analysis
+- Describe dependency scanning and license compliance
+- Identify security policy enforcement and compliance
+
+Quality Assurance:
+- Describe code quality tools and static analysis
+- Explain performance testing and load testing
+- Describe accessibility and usability testing
+- Identify quality gates and approval processes
+
+Deployment Strategy:
+- Describe deployment environments and promotion strategy
+- Explain blue-green, canary, or rolling deployment approaches
+- Describe environment-specific configurations and secrets management
+- Identify rollback strategies and disaster recovery
+
+Infrastructure as Code:
+- Describe infrastructure automation and configuration management
+- Explain containerization and orchestration strategies
+- Describe environment provisioning and scaling
+- Identify infrastructure monitoring and alerting
+
+Monitoring and Observability:
+- Describe application monitoring and logging strategies
+- Explain metrics collection and dashboard creation
+- Describe alerting and notification mechanisms
+- Identify performance monitoring and optimization
+
+Security and Compliance:
+- Describe security scanning and vulnerability management
+- Explain compliance checking and policy enforcement
+- Describe audit logging and traceability
+- Identify security best practices and standards
+
+Automation and Efficiency:
+- Describe pipeline optimization and parallelization
+- Explain automated testing and deployment strategies
+- Describe self-service capabilities and developer experience
+- Identify efficiency improvements and cost optimization
+
+Do NOT add any other content.
+
+[testing_concept]
+Section: Specific Testing Concept
+Description:
+This section describes the comprehensive testing strategy and approach for ensuring system quality, reliability, and performance.
+
+Testing Strategy Overview:
+- Describe the overall testing philosophy and approach
+- Explain the testing pyramid and test distribution
+- Describe risk-based testing and prioritization
+- Identify testing objectives and success criteria
+
+Unit Testing:
+- Describe unit testing frameworks and tools
+- Explain test coverage requirements and metrics
+- Describe mocking and test isolation strategies
+- Identify unit testing best practices and standards
+
+Integration Testing:
+- Describe integration testing approaches and tools
+- Explain API testing and contract testing strategies
+- Describe database integration and data testing
+- Identify integration test environment management
+
+End-to-End Testing:
+- Describe E2E testing frameworks and tools
+- Explain user journey testing and scenario coverage
+- Describe cross-browser and cross-platform testing
+- Identify E2E test data management and environment setup
+
+Performance Testing:
+- Describe performance testing tools and methodologies
+- Explain load testing, stress testing, and scalability testing
+- Describe performance monitoring and metrics collection
+- Identify performance benchmarks and SLAs
+
+Security Testing:
+- Describe security testing approaches and tools
+- Explain penetration testing and vulnerability assessment
+- Describe security scanning and compliance testing
+- Identify security testing automation and continuous monitoring
+
+Accessibility Testing:
+- Describe accessibility testing tools and methodologies
+- Explain WCAG compliance and accessibility standards
+- Describe assistive technology testing and user testing
+- Identify accessibility automation and continuous monitoring
+
+Mobile and Responsive Testing:
+- Describe mobile testing strategies and tools
+- Explain responsive design testing and cross-device testing
+- Describe mobile-specific testing considerations
+- Identify mobile testing automation and device management
+
+AI and Machine Learning Testing:
+- Describe testing approaches for AI/ML components
+- Explain model validation and accuracy testing
+- Describe data quality testing and bias detection
+- Identify AI testing automation and continuous monitoring
+
+Test Data Management:
+- Describe test data creation and management strategies
+- Explain data anonymization and privacy protection
+- Describe test environment data setup and cleanup
+- Identify test data versioning and synchronization
+
+Test Environment Management:
+- Describe test environment provisioning and management
+- Explain environment isolation and parallel testing
+- Describe environment-specific configurations and settings
+- Identify test environment monitoring and maintenance
+
+Automation and Continuous Testing:
+- Describe test automation frameworks and tools
+- Explain continuous testing integration with CI/CD
+- Describe automated test execution and reporting
+- Identify test automation maintenance and optimization
+
+Quality Metrics and Reporting:
+- Describe quality metrics and KPIs for testing
+- Explain test coverage reporting and analysis
+- Describe defect tracking and quality trends
+- Identify quality improvement initiatives and feedback loops
+
+Do NOT add any other content.
+
+[deployment_operation]
+Section: Deployment and Operation Environment
+Description:
+This section describes the deployment infrastructure, operational procedures, and monitoring strategies for the system.
+
+Infrastructure Overview:
+- Describe the overall infrastructure architecture and design
+- Explain cloud vs on-premise vs hybrid deployment strategies
+- Describe infrastructure scalability and elasticity
+- Identify infrastructure security and compliance requirements
+
+Cloud Infrastructure:
+- Describe cloud platform selection and rationale
+- Explain cloud services and components used
+- Describe cloud resource management and optimization
+- Identify cloud security and compliance measures
+
+Containerization and Orchestration:
+- Describe containerization strategy and Docker implementation
+- Explain Kubernetes or other orchestration platforms
+- Describe container security and image management
+- Identify container monitoring and resource optimization
+
+Database and Storage:
+- Describe database deployment and management strategies
+- Explain data backup and disaster recovery procedures
+- Describe storage solutions and data management
+- Identify database performance monitoring and optimization
+
+Network and Security:
+- Describe network architecture and connectivity
+- Explain firewall configurations and security policies
+- Describe SSL/TLS implementation and certificate management
+- Identify network monitoring and security incident response
+
+Monitoring and Observability:
+- Describe application monitoring and alerting systems
+- Explain log aggregation and analysis tools
+- Describe metrics collection and dashboard creation
+- Identify performance monitoring and optimization
+
+Deployment Strategies:
+- Describe deployment models and strategies
+- Explain blue-green, canary, or rolling deployment approaches
+- Describe deployment automation and configuration management
+- Identify rollback strategies and disaster recovery
+
+Scaling and Performance:
+- Describe auto-scaling strategies and load balancing
+- Explain performance optimization and caching strategies
+- Describe resource utilization monitoring and optimization
+- Identify capacity planning and growth strategies
+
+Backup and Disaster Recovery:
+- Describe backup strategies and data protection
+- Explain disaster recovery procedures and RTO/RPO
+- Describe business continuity planning and testing
+- Identify backup monitoring and verification
+
+Security and Compliance:
+- Describe security monitoring and threat detection
+- Explain compliance monitoring and audit procedures
+- Describe security incident response and remediation
+- Identify security best practices and standards
+
+Operational Procedures:
+- Describe operational runbooks and procedures
+- Explain incident management and escalation procedures
+- Describe change management and release procedures
+- Identify operational documentation and knowledge management
+
+Cost Optimization:
+- Describe cost monitoring and optimization strategies
+- Explain resource utilization and efficiency measures
+- Describe cost allocation and budgeting procedures
+- Identify cost optimization opportunities and strategies
+
+Do NOT add any other content.
+
+[ux_ui]
+Section: UX/UI Design and Prototyping
+Description:
+This section describes the user experience and user interface design approach, including design processes, tools, and methodologies.
+
+Design Philosophy and Approach:
+- Describe the overall design philosophy and principles
+- Explain user-centered design methodology and processes
+- Describe design thinking and iterative design approaches
+- Identify design goals and success criteria
+
+User Research and Analysis:
+- Describe user research methods and data collection
+- Explain user persona development and journey mapping
+- Describe usability testing and user feedback collection
+- Identify user research tools and analytics platforms
+
+Information Architecture:
+- Describe site structure and navigation design
+- Explain content organization and information hierarchy
+- Describe search functionality and content discovery
+- Identify information architecture tools and methodologies
+
+Visual Design and Branding:
+- Describe visual design principles and brand guidelines
+- Explain color schemes, typography, and visual elements
+- Describe design system and component library development
+- Identify visual design tools and asset management
+
+Responsive Design and Accessibility:
+- Describe responsive design principles and mobile-first approach
+- Explain cross-device compatibility and adaptive layouts
+- Describe accessibility standards and WCAG compliance
+- Identify accessibility testing tools and methodologies
+
+Prototyping and Wireframing:
+- Describe prototyping tools and methodologies
+- Explain wireframing and mockup creation processes
+- Describe interactive prototyping and user testing
+- Identify prototyping tools and collaboration platforms
+
+User Interface Components:
+- Describe UI component library and design system
+- Explain component reusability and consistency
+- Describe interactive elements and micro-interactions
+- Identify UI component documentation and maintenance
+
+User Experience Optimization:
+- Describe UX optimization strategies and A/B testing
+- Explain conversion optimization and user engagement
+- Describe performance optimization and loading times
+- Identify UX analytics and user behavior tracking
+
+Design Collaboration and Workflow:
+- Describe design team collaboration and communication
+- Explain design handoff processes and developer collaboration
+- Describe design review and approval workflows
+- Identify design project management and version control
+
+Design Tools and Technology:
+- Describe design tools and software platforms used
+- Explain design asset management and version control
+- Describe design-to-code workflows and automation
+- Identify design tool integration and collaboration features
+
+Quality Assurance and Testing:
+- Describe design quality assurance and review processes
+- Explain usability testing and user feedback collection
+- Describe design consistency and brand compliance
+- Identify design testing tools and methodologies
+
+Performance and Optimization:
+- Describe design performance optimization strategies
+- Explain image optimization and asset compression
+- Describe loading time optimization and user experience
+- Identify performance monitoring and optimization tools
+
+Do NOT add any other content. 

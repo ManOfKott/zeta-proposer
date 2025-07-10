@@ -1,0 +1,26 @@
+# AI/API
+openai
+requests
+
+# Word document generation
+python-docx
+
+# Windows COM automation for Visio and PDF conversion
+pywin32
+pywin32-ctypes
+
+# Image processing for diagrams
+Pillow
+
+# Configuration management
+python-dotenv
+
+# Logging
+colorama
+
+# Future: File automation
+watchdog
+
+# Diagrams
+diagrams 
+graphviz>=0.20 

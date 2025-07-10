@@ -1,0 +1,23 @@
+E-Learning-Plattform für Unternehmen
+
+Wir entwickeln eine moderne E-Learning-Plattform, die Unternehmen dabei unterstützt, ihre Mitarbeiter kontinuierlich weiterzubilden. Die Plattform soll sowohl für kleine Teams als auch für große Konzerne skalierbar sein.
+
+Hauptfunktionen:
+- Benutzerverwaltung mit Rollen (Admin, Trainer, Teilnehmer)
+- Kurserstellung und -verwaltung mit verschiedenen Inhaltstypen (Video, Text, Quiz)
+- Fortschrittsverfolgung und Zertifikatsvergabe
+- Interaktive Elemente wie Diskussionsforen und Live-Webinare
+- Mobile App für iOS und Android
+- Integration mit bestehenden HR-Systemen
+- Analytics und Reporting für L&D-Manager
+
+Technische Anforderungen:
+- Cloud-basierte Lösung (AWS oder Azure)
+- Microservices-Architektur für Skalierbarkeit
+- RESTful APIs für Integrationen
+- Real-time Kommunikation für Live-Sessions
+- Sichere Authentifizierung und Autorisierung
+- Backup und Disaster Recovery
+- Compliance mit DSGVO und anderen Datenschutzrichtlinien
+
+Zielgruppe: Unternehmen aller Größen, die strukturierte Weiterbildungsprogramme anbieten möchten. 
