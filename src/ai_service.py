@@ -353,9 +353,10 @@ Please provide a detailed technical analysis and concept document as specified i
                     self.logger.info("No word count requirement found in description")
                     min_words, max_words = 150, 325  # Default values
             
+            # Calculate word count (moved outside if/else block)
             words = len(re.findall(r"\w+", content))
             self.logger.info("Actual word count: %d", words)
-            
+                
             if words < min_words or words > max_words:
                 self.logger.warning("Section length out of bounds: %d words (min %d, max %d)", words, min_words, max_words)
                 return False, f"Section length out of bounds: {words} words (min {min_words}, max {max_words})"

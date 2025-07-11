@@ -11,12 +11,6 @@
         "target": "Ideal word count for the section",
         "min": "Minimum acceptable word count",
         "max": "Maximum acceptable word count (with tolerance)"
-      },
-      "diagram": {
-        "enabled": "Whether to generate a diagram for this section (true/false)",
-        "type": "Type of diagram (context, architecture, integration, pipeline, testing, infrastructure, ux_ui)",
-        "description": "What the diagram should visualize",
-        "requirements": "List of specific requirements for the diagram content"
       }
     },
     "examples": {
@@ -24,16 +18,7 @@
         "short": {"target": 150, "min": 100, "max": 200},
         "medium": {"target": 250, "min": 150, "max": 325},
         "long": {"target": 400, "min": 300, "max": 520}
-      },
-      "diagram_types": [
-        "context - System boundaries and stakeholders",
-        "architecture - Technical components and relationships", 
-        "integration - External interfaces and APIs",
-        "pipeline - CI/CD workflow stages",
-        "testing - Testing pyramid and coverage",
-        "infrastructure - Deployment and infrastructure",
-        "ux_ui - User journey and interface flow"
-      ]
+      }
     }
   },
   
@@ -53,19 +38,6 @@
       "target": 70,
       "min": 30,
       "max": 100
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "context",
-      "description": "Visualize the system scope, boundaries, stakeholders, and main components",
-      "requirements": [
-        "Show system boundaries clearly with a boundary box",
-        "Include all major stakeholders (users, admins, external systems)",
-        "Display external systems and dependencies",
-        "Show data flow between components",
-        "Highlight the main system components",
-        "Use different node shapes for different types of entities"
-      ]
     }
   },
   
@@ -87,20 +59,6 @@
       "target": 150,
       "min": 100,
       "max": 200
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "architecture",
-      "description": "Show the main components, their relationships, and key technologies",
-      "requirements": [
-        "Display all major system components (frontend, backend, database, etc.)",
-        "Show relationships between components with labeled arrows",
-        "Include technology stack information in component labels",
-        "Show data flow and communication patterns",
-        "Highlight security boundaries and authentication layers",
-        "Use different colors for different technology layers",
-        "Include external services and APIs"
-      ]
     }
   },
   
@@ -124,19 +82,6 @@
       "target": 70,
       "min": 30,
       "max": 100
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "integration",
-      "description": "Show external interfaces and integration points",
-      "requirements": [
-        "Display external systems and APIs",
-        "Show API endpoints and methods",
-        "Include authentication flows",
-        "Show data exchange patterns",
-        "Highlight security boundaries",
-        "Show error handling paths"
-      ]
     }
   },
   
@@ -160,19 +105,6 @@
       "target": 70,
       "min": 30,
       "max": 100
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "pipeline",
-      "description": "Show the CI/CD pipeline stages and workflow",
-      "requirements": [
-        "Display pipeline stages in sequence",
-        "Show build and test processes",
-        "Include deployment steps",
-        "Show quality gates and approval points",
-        "Highlight security scanning stages",
-        "Show rollback mechanisms"
-      ]
     }
   },
   
@@ -198,19 +130,6 @@
       "target": 100,
       "min": 50,
       "max": 150
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "testing",
-      "description": "Show testing pyramid and test distribution",
-      "requirements": [
-        "Display testing layers (unit, integration, e2e)",
-        "Show test coverage areas",
-        "Include automation levels",
-        "Show quality gates",
-        "Highlight critical test paths",
-        "Show test data flow"
-      ]
     }
   },
   
@@ -235,19 +154,6 @@
       "target": 70,
       "min": 30,
       "max": 100
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "infrastructure",
-      "description": "Show deployment architecture and infrastructure",
-      "requirements": [
-        "Display infrastructure components",
-        "Show deployment environments",
-        "Include monitoring systems",
-        "Show scaling mechanisms",
-        "Highlight security layers",
-        "Show backup and recovery paths"
-      ]
     }
   },
   
@@ -272,19 +178,6 @@
       "target": 70,
       "min": 30,
       "max": 100
-    },
-    "diagram": {
-      "enabled": false,
-      "type": "ux_ui",
-      "description": "Show user journey and interface flow",
-      "requirements": [
-        "Display user journey steps",
-        "Show interface components",
-        "Include user interaction flows",
-        "Show responsive design breakpoints",
-        "Highlight key user touchpoints",
-        "Show navigation patterns"
-      ]
     }
   }
 } 

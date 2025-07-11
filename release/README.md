@@ -89,6 +89,8 @@ Generierte Dateien werden im `output/` Ordner gespeichert:
 output/
 ├── docx/                    # Word-Dokumente
 │   └── Projektname_YYYY-MM-DD.docx
+├── json/                    # JSON-Spezifikationsdateien
+│   └── Projektname.json
 ├── diagrams/               # PNG-Diagramme
 │   └── section_name.png
 └── logs/                   # Log-Dateien
@@ -120,6 +122,7 @@ Die Sektionen können in `section_descriptions.json` angepasst werden:
 - ✅ **KI-gestützte Inhaltsgenerierung**
 - ✅ **Automatische Diagramm-Erstellung**
 - ✅ **Word-Dokument-Export**
+- ✅ **JSON-Spezifikationsgenerierung**
 - ✅ **Template-Unterstützung**
 - ✅ **Manuelle Projektnamen-Eingabe**
 - ✅ **Konfigurierbare Wortanzahl-Grenzen**

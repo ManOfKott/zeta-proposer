@@ -16,4 +16,4 @@ python-dotenv
 colorama
 
 # Future: File automation
-watchdog 
+watchdog

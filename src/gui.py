@@ -51,6 +51,7 @@ class ZetaProposerGUI:
         self.ollama_model = "llama3"
         self.alignment_threshold = 0.6  # Defaultwert
         self.output_directory = "output/docx"  # Defaultwert
+        self.json_output_directory = "output/json"  # Defaultwert for JSON files
         self.initiator = ""  # Defaultwert
         self.cancel_requested = False  # Für Abbrechen-Button
         
@@ -121,7 +122,7 @@ class ZetaProposerGUI:
             except Exception as e:
                 messagebox.showerror("Fehler", f"Konnte Datei nicht öffnen: {e}")
         lb.bind('<Double-Button-1>', open_selected)
-
+        
     def setup_ui(self):
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
@@ -164,6 +165,8 @@ class ZetaProposerGUI:
         self.cancel_btn.pack(side=tk.LEFT, padx=(0, 10))
         load_btn = ttk.Button(button_frame, text="Load from File", command=self.load_from_file)
         load_btn.pack(side=tk.LEFT, padx=(0, 10))
+        generate_json_btn = ttk.Button(button_frame, text="Generate from Specification", command=self.generate_json_from_specification)
+        generate_json_btn.pack(side=tk.LEFT, padx=(0, 10))
         self.progress_var = tk.StringVar(value="Ready")
         progress_label = ttk.Label(button_frame, textvariable=self.progress_var)
         progress_label.pack(side=tk.LEFT, padx=(20, 0))
@@ -238,6 +241,7 @@ class ZetaProposerGUI:
             self.ollama_model = cfg.get("ollama_model", "llama3")
             self.alignment_threshold = float(cfg.get("alignment_threshold", 0.6))
             self.output_directory = cfg.get("output_directory", "output/docx")
+            self.json_output_directory = cfg.get("json_output_directory", "output/json")
             self.initiator = cfg.get("initiator", "")
         except FileNotFoundError:
             # Erstelle Standard-Konfiguration wenn Datei nicht existiert
@@ -257,6 +261,7 @@ class ZetaProposerGUI:
             "ollama_model": "llama3",
             "alignment_threshold": 0.6,
             "output_directory": "output/docx",
+            "json_output_directory": "output/json",
             "initiator": ""
         }
         try:
@@ -286,6 +291,7 @@ class ZetaProposerGUI:
             "ollama_model": self.ollama_model,
             "alignment_threshold": self.alignment_threshold,
             "output_directory": self.output_directory,
+            "json_output_directory": self.json_output_directory,
             "initiator": self.initiator
         }
         with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
@@ -345,6 +351,7 @@ class ZetaProposerGUI:
         ollama_url_var = tk.StringVar(value=self.ollama_url)
         ollama_model_var = tk.StringVar(value=self.ollama_model)
         output_dir_var = tk.StringVar(value=self.output_directory)
+        json_output_dir_var = tk.StringVar(value=self.json_output_directory)
         initiator_var = tk.StringVar(value=self.initiator)
         
         def show_provider_fields(event=None):
@@ -455,6 +462,21 @@ class ZetaProposerGUI:
         browse_btn = ttk.Button(output_dir_frame, text="Durchsuchen", command=browse_output_dir)
         browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
         
+        # JSON Output directory setting
+        ttk.Label(scrollable_frame, text="JSON Ausgabeverzeichnis:").pack(anchor=tk.W, pady=(15,0))
+        json_output_dir_frame = ttk.Frame(scrollable_frame)
+        json_output_dir_frame.pack(fill=tk.X, pady=(0, 10))
+        json_output_dir_entry = ttk.Entry(json_output_dir_frame, textvariable=json_output_dir_var, width=40)
+        json_output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        def browse_json_output_dir():
+            dir_path = filedialog.askdirectory(title="JSON Ausgabeverzeichnis auswählen", initialdir=json_output_dir_var.get())
+            if dir_path:
+                json_output_dir_var.set(dir_path)
+        
+        browse_json_btn = ttk.Button(json_output_dir_frame, text="Durchsuchen", command=browse_json_output_dir)
+        browse_json_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        
         # Akzeptanzschwellen-Slider
         ttk.Label(scrollable_frame, text="Akzeptanzschwelle für inhaltliche Übereinstimmung (0.3 = locker, 1.0 = sehr streng):").pack(anchor=tk.W, pady=(15,0))
         threshold_var = tk.DoubleVar(value=self.alignment_threshold)
@@ -502,6 +524,7 @@ class ZetaProposerGUI:
             
             self.alignment_threshold = float(threshold_var.get())
             self.output_directory = output_dir_var.get()
+            self.json_output_directory = json_output_dir_var.get()
             self.initiator = initiator_var.get()
             self.save_config()
             # Reinitialize services with new output directory
@@ -520,21 +543,172 @@ class ZetaProposerGUI:
         settings_window.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
     def load_from_file(self):
-        """Load project description from file"""
+        """Load project data from JSON file"""
         file_path = filedialog.askopenfilename(
-            title="Select Project Description File",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            title="Select Project Data File",
+            filetypes=[("JSON files", "*.json"), ("Text files", "*.txt"), ("All files", "*.*")]
         )
         
         if file_path:
             try:
                 with open(file_path, 'r', encoding='utf-8') as file:
                     content = file.read()
-                    self.description_text.delete(1.0, tk.END)
-                    self.description_text.insert(1.0, content)
-                self.status_var.set(f"Loaded: {Path(file_path).name}")
+                    
+                    # Try to parse as JSON first
+                    try:
+                        import json
+                        data = json.loads(content)
+                        
+                        # Extract fields from JSON object
+                        project_name = data.get('name', '').strip()
+                        upwork_link = data.get('link', '').strip()
+                        description = data.get('description', '').strip()
+                        
+                        # Update GUI fields
+                        if project_name:
+                            self.project_name_var.set(project_name)
+                        if upwork_link:
+                            self.upwork_link_var.set(upwork_link)
+                        if description:
+                            self.description_text.delete(1.0, tk.END)
+                            self.description_text.insert(1.0, description)
+                        
+                        # Show what was loaded
+                        loaded_info = []
+                        if project_name:
+                            loaded_info.append(f"Name: {project_name}")
+                        if upwork_link:
+                            loaded_info.append(f"Link: {upwork_link}")
+                        if description:
+                            loaded_info.append(f"Description: {len(description)} chars")
+                        
+                        status_msg = f"Loaded JSON from {Path(file_path).name}: {', '.join(loaded_info)}"
+                        self.status_var.set(status_msg)
+                        
+                    except json.JSONDecodeError:
+                        # Fallback to old text parsing for backward compatibility
+                        project_name = ""
+                        upwork_link = ""
+                        description = ""
+                        
+                        lines = content.split('\n')
+                        current_section = None
+                        
+                        for line in lines:
+                            line = line.strip()
+                            if not line:
+                                continue
+                                
+                            # Check for [project_name] style placeholders
+                            if line.lower().startswith('[name]') or line.lower().startswith('[project_name]'):
+                                # Extract content after the placeholder
+                                if line.lower().startswith('[name]'):
+                                    project_name = line[6:].strip()
+                                else:
+                                    project_name = line[15:].strip()
+                            elif line.lower().startswith('[link]') or line.lower().startswith('[upwork_link]'):
+                                # Extract content after the placeholder
+                                if line.lower().startswith('[link]'):
+                                    upwork_link = line[7:].strip()
+                                else:
+                                    upwork_link = line[13:].strip()
+                            elif line.lower().startswith('[description]') or line.lower().startswith('[summary]'):
+                                current_section = 'description'
+                                if line.lower().startswith('[description]'):
+                                    description = line[13:].strip()
+                                else:
+                                    description = line[9:].strip()
+                            elif current_section == 'description':
+                                # Continue reading description
+                                description += '\n' + line
+                            else:
+                                # If no section headers found, treat as description
+                                if not project_name and not upwork_link:
+                                    description += line + '\n'
+                        
+                        # Update GUI fields
+                        if project_name:
+                            self.project_name_var.set(project_name)
+                        if upwork_link:
+                            self.upwork_link_var.set(upwork_link)
+                        if description:
+                            self.description_text.delete(1.0, tk.END)
+                            self.description_text.insert(1.0, description.strip())
+                        
+                        # Show what was loaded
+                        loaded_info = []
+                        if project_name:
+                            loaded_info.append(f"Name: {project_name}")
+                        if upwork_link:
+                            loaded_info.append(f"Link: {upwork_link}")
+                        if description:
+                            loaded_info.append(f"Description: {len(description)} chars")
+                        
+                        status_msg = f"Loaded text from {Path(file_path).name}: {', '.join(loaded_info)}"
+                        self.status_var.set(status_msg)
+                    
             except Exception as e:
                 messagebox.showerror("Error", f"Could not load file: {str(e)}")
+    
+    def generate_json_from_specification(self):
+        """Generate JSON file from current specification in the UI"""
+        # Get project data from UI
+        project_name = self.project_name_var.get().strip()
+        if not project_name or project_name == "Enter project name here...":
+            messagebox.showwarning("Warning", "Please enter a project name.")
+            return
+            
+        upwork_link = self.upwork_link_var.get().strip()
+        description = self.description_text.get("1.0", tk.END).strip()
+        if not description:
+            messagebox.showwarning("Warning", "Please enter a project description.")
+            return
+        
+        # Create JSON data structure
+        json_data = {
+            "name": project_name,
+            "link": upwork_link,
+            "description": description
+        }
+        
+        # Create output directory if it doesn't exist
+        json_output_dir = Path(self.json_output_directory)
+        json_output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename using project name with better sanitization
+        import re
+        # Remove or replace invalid filename characters
+        safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name)
+        # Replace multiple spaces/underscores with single underscore
+        safe_project_name = re.sub(r'[_\s]+', '_', safe_project_name)
+        # Remove leading/trailing underscores and spaces
+        safe_project_name = safe_project_name.strip('_ ')
+        # Ensure the filename is not empty
+        if not safe_project_name:
+            safe_project_name = "unnamed_project"
+        # Limit length to avoid filesystem issues
+        if len(safe_project_name) > 100:
+            safe_project_name = safe_project_name[:100]
+        
+        filename = f"{safe_project_name}.json"
+        json_path = json_output_dir / filename
+        
+        try:
+            # Write JSON file
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            
+            # Show success message
+            message = f"JSON specification generated successfully!\n\nFile created:\n• {json_path}"
+            messagebox.showinfo("Success", message)
+            
+            # Update status
+            self.status_var.set(f"JSON file created: {filename}")
+            
+        except Exception as e:
+            error_message = f"Error generating JSON file: {str(e)}"
+            messagebox.showerror("Error", error_message)
+            self.status_var.set("JSON generation failed")
     
     def generate_concept(self):
         """Start the concept generation process"""
@@ -682,7 +856,7 @@ class ZetaProposerGUI:
                 if hasattr(self, 'logger') and self.logger:
                     self.logger.info("Generation cancelled during Word document creation")
                 return
-            
+                
             # Update GUI
             self.root.after(0, lambda: self.progress_var.set("Completed"))
             self.root.after(0, lambda: self.status_var.set("Generation completed successfully"))

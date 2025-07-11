@@ -2,6 +2,7 @@
 """
 Zeta Proposer - Technical Concept Generator
 Main entry point for the application
+Version: 1.0.1
 """
 
 import sys
@@ -16,7 +17,7 @@ from src.gui import main as gui_main
 
 def main():
     """Main entry point"""
-    print("Starting Zeta Proposer...")
+    print("Starting Zeta Proposer v1.0.1...")
     print("Technical Concept Generator")
     print("=" * 40)
     

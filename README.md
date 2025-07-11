@@ -7,6 +7,7 @@ Ein intelligentes Tool zur automatischen Generierung technischer Konzepte aus So
 - **KI-gestützte Analyse**: Unterstützt sowohl OpenAI GPT als auch Ollama für die Konzeptgenerierung
 - **Intelligente Diagrammerstellung**: Automatische Erstellung von Architektur- und Systemdiagrammen mit Microsoft Visio
 - **Professionelle Word-Dokumente**: Generierung strukturierter technischer Konzepte im .docx-Format
+- **JSON-Spezifikationsgenerierung**: Erstellung von JSON-Dateien aus Projektspezifikationen für einfache Datenaustausch
 - **Benutzerfreundliche GUI**: Einfache Bedienung über eine intuitive grafische Oberfläche
 - **Flexible Eingabe**: Texteingabe über GUI oder zukünftig auch über TXT-Dateien
 
@@ -65,8 +66,9 @@ python main.py
 1. **KI-Provider auswählen**: Wähle zwischen OpenAI und Ollama
 2. **Konfiguration**: Klicke auf "Configure" um API-Keys einzustellen
 3. **Projektbeschreibung eingeben**: Beschreibe dein Software-Projekt
-4. **Konzept generieren**: Klicke auf "Generate Technical Concept"
-5. **Ergebnis**: Das Word-Dokument wird im `output/`-Ordner gespeichert
+4. **Konzept generieren**: Klicke auf "Generate Technical Concept" für Word-Dokumente
+5. **JSON generieren**: Klicke auf "Generate from Specification" für JSON-Dateien
+6. **Ergebnis**: Die Dokumente werden im `output/`-Ordner gespeichert
 
 ### Beispiel-Projektbeschreibung
 
@@ -97,6 +99,9 @@ zeta proposer/
 │   ├── word_generator.py   # Word-Dokument-Generator
 │   └── visio_diagram.py    # Visio-Diagramm-Generator
 ├── output/                 # Generierte Dokumente
+│   ├── docx/              # Word-Dokumente
+│   ├── json/              # JSON-Spezifikationsdateien
+│   └── logs/              # Log-Dateien
 ├── venv/                   # Virtuelles Environment
 ├── requirements.txt        # Python-Abhängigkeiten
 ├── main.py                 # Haupt-Einstiegspunkt
