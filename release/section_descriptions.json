@@ -1,0 +1,290 @@
+{
+  "_documentation": {
+    "description": "Zeta Proposer - Section Descriptions Configuration",
+    "version": "1.0",
+    "usage": "This file configures how each section of the technical concept document is generated.",
+    "fields": {
+      "title": "The display title for the section in the document",
+      "description": "The detailed description that guides the AI in generating content",
+      "content_requirements": "List of topics that should be covered in this section",
+      "word_count": {
+        "target": "Ideal word count for the section",
+        "min": "Minimum acceptable word count",
+        "max": "Maximum acceptable word count (with tolerance)"
+      },
+      "diagram": {
+        "enabled": "Whether to generate a diagram for this section (true/false)",
+        "type": "Type of diagram (context, architecture, integration, pipeline, testing, infrastructure, ux_ui)",
+        "description": "What the diagram should visualize",
+        "requirements": "List of specific requirements for the diagram content"
+      }
+    },
+    "examples": {
+      "word_count": {
+        "short": {"target": 150, "min": 100, "max": 200},
+        "medium": {"target": 250, "min": 150, "max": 325},
+        "long": {"target": 400, "min": 300, "max": 520}
+      },
+      "diagram_types": [
+        "context - System boundaries and stakeholders",
+        "architecture - Technical components and relationships", 
+        "integration - External interfaces and APIs",
+        "pipeline - CI/CD workflow stages",
+        "testing - Testing pyramid and coverage",
+        "infrastructure - Deployment and infrastructure",
+        "ux_ui - User journey and interface flow"
+      ]
+    }
+  },
+  
+  "system_scope": {
+    "title": "System Scope and Boundaries",
+    "description": "This section defines the complete scope and boundaries of the system to be developed. It should provide a comprehensive understanding of what the system will and will not include. Focus on business context, stakeholders, functional and non-functional requirements, and success criteria.",
+    "content_requirements": [
+      "Business Context and Objectives - What business problems does this solve?",
+      "Stakeholder Analysis - Who are the key users and stakeholders?", 
+      "System Boundaries - What is included/excluded from the system?",
+      "Functional Requirements - What must the system do?",
+      "Non-Functional Requirements - Performance, security, scalability needs",
+      "Technical Constraints - Limitations and technical requirements",
+      "Success Criteria - How will we measure success?"
+    ],
+    "word_count": {
+      "target": 70,
+      "min": 30,
+      "max": 100
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "context",
+      "description": "Visualize the system scope, boundaries, stakeholders, and main components",
+      "requirements": [
+        "Show system boundaries clearly with a boundary box",
+        "Include all major stakeholders (users, admins, external systems)",
+        "Display external systems and dependencies",
+        "Show data flow between components",
+        "Highlight the main system components",
+        "Use different node shapes for different types of entities"
+      ]
+    }
+  },
+  
+  "architecture_tech_stack": {
+    "title": "Architecture and Technology Stack",
+    "description": "This section provides a comprehensive technical architecture and technology stack for the system. It should demonstrate a well-thought-out technical approach that aligns with business requirements. Cover the architectural patterns, technology choices, component design, and how everything works together.",
+    "content_requirements": [
+      "Architecture Overview - What architectural pattern are you using?",
+      "Technology Stack Selection - Why these specific technologies?",
+      "Component Architecture - How are components organized?",
+      "Data Architecture - How is data stored and accessed?",
+      "Communication and Integration - How do components communicate?",
+      "Security Architecture - How is security implemented?",
+      "Performance and Scalability - How does the system scale?",
+      "Deployment Architecture - How is the system deployed?",
+      "Technology Stack Details - Specific technologies and versions"
+    ],
+    "word_count": {
+      "target": 150,
+      "min": 100,
+      "max": 200
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "architecture",
+      "description": "Show the main components, their relationships, and key technologies",
+      "requirements": [
+        "Display all major system components (frontend, backend, database, etc.)",
+        "Show relationships between components with labeled arrows",
+        "Include technology stack information in component labels",
+        "Show data flow and communication patterns",
+        "Highlight security boundaries and authentication layers",
+        "Use different colors for different technology layers",
+        "Include external services and APIs"
+      ]
+    }
+  },
+  
+  "external_interfaces": {
+    "title": "System-external Interfaces and Integrations",
+    "description": "This section describes all external interfaces and integrations that the system will have with other systems, services, and external entities. Focus on API design, authentication, data exchange, error handling, and monitoring.",
+    "content_requirements": [
+      "External System Overview - What external systems do you integrate with?",
+      "API Design and Specifications - REST, GraphQL, or other protocols?",
+      "Authentication and Authorization - How do you secure external interfaces?",
+      "Data Exchange and Formats - What data formats do you use?",
+      "Integration Patterns - Synchronous vs asynchronous patterns?",
+      "Error Handling and Resilience - How do you handle failures?",
+      "Performance and Reliability - What are the performance requirements?",
+      "Security Considerations - How do you protect data in transit?",
+      "Monitoring and Observability - How do you monitor integrations?",
+      "Third-Party Services - What third-party services do you use?",
+      "Compliance and Governance - What compliance requirements apply?"
+    ],
+    "word_count": {
+      "target": 70,
+      "min": 30,
+      "max": 100
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "integration",
+      "description": "Show external interfaces and integration points",
+      "requirements": [
+        "Display external systems and APIs",
+        "Show API endpoints and methods",
+        "Include authentication flows",
+        "Show data exchange patterns",
+        "Highlight security boundaries",
+        "Show error handling paths"
+      ]
+    }
+  },
+  
+  "ci_cd": {
+    "title": "CI/CD Pipelines",
+    "description": "This section describes the continuous integration and continuous deployment pipeline that will be used for the system development and deployment. Cover the entire pipeline from code commit to production deployment, including testing, security scanning, and quality assurance.",
+    "content_requirements": [
+      "Pipeline Overview - What is your CI/CD strategy?",
+      "Source Code Management - How do you manage branches and versions?",
+      "Build Process - How do you compile and package the application?",
+      "Testing Strategy - What types of tests do you run?",
+      "Security Scanning - How do you scan for vulnerabilities?",
+      "Quality Assurance - What quality gates do you have?",
+      "Deployment Strategy - How do you deploy to different environments?",
+      "Infrastructure as Code - How do you manage infrastructure?",
+      "Monitoring and Observability - How do you monitor deployments?",
+      "Security and Compliance - How do you ensure compliance?",
+      "Automation and Efficiency - How do you optimize the pipeline?"
+    ],
+    "word_count": {
+      "target": 70,
+      "min": 30,
+      "max": 100
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "pipeline",
+      "description": "Show the CI/CD pipeline stages and workflow",
+      "requirements": [
+        "Display pipeline stages in sequence",
+        "Show build and test processes",
+        "Include deployment steps",
+        "Show quality gates and approval points",
+        "Highlight security scanning stages",
+        "Show rollback mechanisms"
+      ]
+    }
+  },
+  
+  "testing_concept": {
+    "title": "Specific Testing Concept",
+    "description": "This section describes the comprehensive testing strategy and approach for ensuring system quality, reliability, and performance. Cover all types of testing from unit tests to end-to-end tests, including automated testing and quality metrics.",
+    "content_requirements": [
+      "Testing Strategy Overview - What is your testing philosophy?",
+      "Unit Testing - How do you test individual components?",
+      "Integration Testing - How do you test component interactions?",
+      "End-to-End Testing - How do you test complete user journeys?",
+      "Performance Testing - How do you test system performance?",
+      "Security Testing - How do you test security vulnerabilities?",
+      "Accessibility Testing - How do you ensure accessibility?",
+      "Mobile and Responsive Testing - How do you test different devices?",
+      "AI and Machine Learning Testing - How do you test AI components?",
+      "Test Data Management - How do you manage test data?",
+      "Test Environment Management - How do you manage test environments?",
+      "Automation and Continuous Testing - How do you automate testing?",
+      "Quality Metrics and Reporting - How do you measure quality?"
+    ],
+    "word_count": {
+      "target": 100,
+      "min": 50,
+      "max": 150
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "testing",
+      "description": "Show testing pyramid and test distribution",
+      "requirements": [
+        "Display testing layers (unit, integration, e2e)",
+        "Show test coverage areas",
+        "Include automation levels",
+        "Show quality gates",
+        "Highlight critical test paths",
+        "Show test data flow"
+      ]
+    }
+  },
+  
+  "deployment_operation": {
+    "title": "Deployment and Operation Environment",
+    "description": "This section describes the deployment infrastructure, operational procedures, and monitoring strategies for the system. Cover everything from cloud infrastructure to backup strategies and operational procedures.",
+    "content_requirements": [
+      "Infrastructure Overview - What is your infrastructure strategy?",
+      "Cloud Infrastructure - Which cloud platform and services?",
+      "Containerization and Orchestration - How do you containerize and orchestrate?",
+      "Database and Storage - How do you manage data and storage?",
+      "Network and Security - How do you secure the network?",
+      "Monitoring and Observability - How do you monitor the system?",
+      "Deployment Strategies - How do you deploy updates?",
+      "Scaling and Performance - How do you handle scaling?",
+      "Backup and Disaster Recovery - How do you protect data?",
+      "Security and Compliance - How do you ensure security?",
+      "Operational Procedures - What are your operational processes?",
+      "Cost Optimization - How do you optimize costs?"
+    ],
+    "word_count": {
+      "target": 70,
+      "min": 30,
+      "max": 100
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "infrastructure",
+      "description": "Show deployment architecture and infrastructure",
+      "requirements": [
+        "Display infrastructure components",
+        "Show deployment environments",
+        "Include monitoring systems",
+        "Show scaling mechanisms",
+        "Highlight security layers",
+        "Show backup and recovery paths"
+      ]
+    }
+  },
+  
+  "ux_ui": {
+    "title": "UX/UI Design and Prototyping",
+    "description": "This section describes the user experience and user interface design approach, including design processes, tools, and methodologies. Cover the entire design process from research to final implementation.",
+    "content_requirements": [
+      "Design Philosophy and Approach - What is your design philosophy?",
+      "User Research and Analysis - How do you understand users?",
+      "Information Architecture - How do you organize information?",
+      "Visual Design and Branding - How do you handle visual design?",
+      "Responsive Design and Accessibility - How do you ensure accessibility?",
+      "Prototyping and Wireframing - How do you create prototypes?",
+      "User Interface Components - How do you design components?",
+      "User Experience Optimization - How do you optimize UX?",
+      "Design Collaboration and Workflow - How do you collaborate?",
+      "Design Tools and Technology - What tools do you use?",
+      "Quality Assurance and Testing - How do you test designs?",
+      "Performance and Optimization - How do you optimize performance?"
+    ],
+    "word_count": {
+      "target": 70,
+      "min": 30,
+      "max": 100
+    },
+    "diagram": {
+      "enabled": false,
+      "type": "ux_ui",
+      "description": "Show user journey and interface flow",
+      "requirements": [
+        "Display user journey steps",
+        "Show interface components",
+        "Include user interaction flows",
+        "Show responsive design breakpoints",
+        "Highlight key user touchpoints",
+        "Show navigation patterns"
+      ]
+    }
+  }
+} 

@@ -36,7 +36,7 @@ class ZetaProposerGUI:
         self.root.title("Zeta Proposer - Technical Concept Generator")
         self.root.geometry("800x700")
         
-        # Load environment variables
+        # Load environment variables (for backward compatibility)
         load_dotenv()
         
         # Initialize services
