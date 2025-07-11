@@ -153,8 +153,8 @@ class WordDocumentGenerator:
         text = text.replace("'", '&apos;')
         return text
     
-    def _ai_shorten_project_name(self, project_name: str, max_length: int, max_retries: int = 3) -> str:
-        """KI-basierte Kürzung des Projektnamens mit Retry-Logik"""
+    def _ai_shorten_project_name(self, project_name: str, max_length: int, max_retries: int = 5) -> str:
+        """KI-basierte Namensgenerierung - erstellt bessere, kürzere Namen statt Kürzung"""
         # Bereinige den Namen zuerst
         safe_name = re.sub(r'[<>:"/\\|?*]', '_', project_name)
         safe_name = re.sub(r'\s+', '_', safe_name)
@@ -163,10 +163,10 @@ class WordDocumentGenerator:
         if len(safe_name) <= max_length:
             return safe_name
         
-        # KI-basierte Kürzung mit Retry-Logik
+        # KI-basierte Namensgenerierung mit verbesserter Retry-Logik
         for attempt in range(max_retries):
             try:
-                # Verwende OpenAI für intelligente Kürzung
+                # Verwende OpenAI für intelligente Namensgenerierung
                 import os
                 from openai import OpenAI
                 
@@ -174,66 +174,177 @@ class WordDocumentGenerator:
                 if api_key:
                     client = OpenAI(api_key=api_key)
                     
-                    prompt = f"""Kürze den folgenden Projektnamen intelligent auf maximal {max_length} Zeichen.
-                    
-                    Regeln:
-                    - Behalte die wichtigsten Wörter bei
-                    - Entferne unwichtige Wörter wie "Projekt", "System", "Anwendung" wenn nötig
-                    - Verwende Abkürzungen wo sinnvoll (z.B. "Management" -> "Mgmt", "Technical" -> "Tech")
+                    # Prompt für bessere Namensgenerierung statt Kürzung
+                    prompt = f"""Erstelle einen besseren, kürzeren Namen für dieses Projekt. NICHT kürzen, sondern einen neuen, prägnanten Namen erfinden.
+
+                    REGELN:
+                    - Maximal {max_length} Zeichen (inkl. Unterstriche)
+                    - Erstelle einen neuen, prägnanten Namen basierend auf dem Projektinhalt
+                    - Verwende technische Abkürzungen: "Management"->"Mgmt", "Technical"->"Tech", "Development"->"Dev", "Application"->"App"
                     - Ersetze Leerzeichen durch Unterstriche
-                    - Entferne Sonderzeichen außer Unterstrichen
-                    - Verwende KEINE Punkte (...) am Ende
-                    - Kürze so, dass der Name vollständig und verständlich bleibt
-                    - WICHTIG: Der Name darf maximal {max_length} Zeichen haben
+                    - Entferne alle Sonderzeichen außer Unterstrichen
+                    - Der Name soll das Projekt gut beschreiben, aber kürzer und prägnanter sein
+                    - WICHTIG: Erstelle einen NEUEN Namen, kürze NICHT den bestehenden
                     
-                    Originaler Name: {project_name}
+                    Projektbeschreibung: {project_name}
                     
-                    Gib nur den gekürzten Namen zurück, ohne Erklärung."""
+                    Gib nur den neuen Namen zurück, ohne Erklärung oder Anführungszeichen."""
                     
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=50,
-                        temperature=0.3
+                        max_tokens=30,
+                        temperature=0.3  # Etwas höhere Temperatur für kreativere Namen
                     )
                     
                     content = response.choices[0].message.content
                     if content is None:
                         raise Exception("OpenAI returned empty response")
-                    shortened_name = content.strip()
                     
                     # Bereinige das Ergebnis
-                    shortened_name = re.sub(r'[<>:"/\\|?*]', '_', shortened_name)
-                    shortened_name = re.sub(r'\s+', '_', shortened_name)
+                    new_name = content.strip()
+                    # Entferne Anführungszeichen falls vorhanden
+                    new_name = new_name.strip('"\'')
+                    new_name = re.sub(r'[<>:"/\\|?*]', '_', new_name)
+                    new_name = re.sub(r'\s+', '_', new_name)
                     
                     # Prüfe Länge und retry falls nötig
-                    if len(shortened_name) <= max_length:
-                        self.logger.info(f"KI-Kürzung erfolgreich (Versuch {attempt + 1}): '{project_name}' -> '{shortened_name}'")
-                        return shortened_name
+                    if len(new_name) <= max_length:
+                        self.logger.info(f"KI-Namensgenerierung erfolgreich (Versuch {attempt + 1}): '{project_name}' -> '{new_name}' ({len(new_name)} Zeichen)")
+                        return new_name
                     else:
-                        self.logger.warning(f"KI-Kürzung zu lang (Versuch {attempt + 1}): {len(shortened_name)} > {max_length} Zeichen")
+                        self.logger.warning(f"KI-generierter Name zu lang (Versuch {attempt + 1}): {len(new_name)} > {max_length} Zeichen")
                         if attempt < max_retries - 1:
-                            continue  # Retry
+                            # Versuche es mit einem strikteren Prompt
+                            continue
                         else:
-                            # Letzter Versuch: Manuelle Kürzung
-                            shortened_name = shortened_name[:max_length]
-                            self.logger.info(f"Manuelle Kürzung nach {max_retries} KI-Versuchen: '{project_name}' -> '{shortened_name}'")
-                            return shortened_name
+                            # Letzter Versuch: Intelligente manuelle Namensgenerierung
+                            new_name = self._manual_smart_name_generation(project_name, max_length)
+                            self.logger.info(f"Intelligente manuelle Namensgenerierung nach {max_retries} KI-Versuchen: '{project_name}' -> '{new_name}'")
+                            return new_name
                     
             except Exception as e:
-                self.logger.warning(f"KI-Kürzung fehlgeschlagen (Versuch {attempt + 1}): {e}")
+                self.logger.warning(f"KI-Namensgenerierung fehlgeschlagen (Versuch {attempt + 1}): {e}")
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
-                    # Letzter Versuch: Manuelle Kürzung
-                    shortened_name = safe_name[:max_length]
-                    self.logger.info(f"Manuelle Kürzung nach {max_retries} fehlgeschlagenen KI-Versuchen: '{project_name}' -> '{shortened_name}'")
-                    return shortened_name
+                    # Letzter Versuch: Intelligente manuelle Namensgenerierung
+                    new_name = self._manual_smart_name_generation(project_name, max_length)
+                    self.logger.info(f"Intelligente manuelle Namensgenerierung nach {max_retries} fehlgeschlagenen KI-Versuchen: '{project_name}' -> '{new_name}'")
+                    return new_name
         
-        # Fallback: Manuelle Kürzung
-        shortened_name = safe_name[:max_length]
-        self.logger.info(f"Manuelle Kürzung: '{project_name}' -> '{shortened_name}'")
-        return shortened_name
+        # Fallback: Intelligente manuelle Namensgenerierung
+        new_name = self._manual_smart_name_generation(project_name, max_length)
+        self.logger.info(f"Intelligente manuelle Namensgenerierung: '{project_name}' -> '{new_name}'")
+        return new_name
+    
+    def _manual_smart_name_generation(self, project_name: str, max_length: int) -> str:
+        """Intelligente manuelle Namensgenerierung basierend auf Projektinhalt"""
+        if len(project_name) <= max_length:
+            return project_name
+        
+        # Extrahiere Schlüsselwörter aus dem Projektnamen
+        words = project_name.lower().split()
+        
+        # Technische Schlüsselwörter und ihre Abkürzungen
+        tech_keywords = {
+            'web': 'web',
+            'mobile': 'mob',
+            'application': 'app',
+            'system': 'sys',
+            'management': 'mgmt',
+            'technical': 'tech',
+            'development': 'dev',
+            'software': 'sw',
+            'hardware': 'hw',
+            'database': 'db',
+            'interface': 'iface',
+            'architecture': 'arch',
+            'implementation': 'impl',
+            'integration': 'int',
+            'configuration': 'config',
+            'administration': 'admin',
+            'authentication': 'auth',
+            'authorization': 'authz',
+            'communication': 'comm',
+            'infrastructure': 'infra',
+            'maintenance': 'maint',
+            'monitoring': 'mon',
+            'optimization': 'opt',
+            'performance': 'perf',
+            'security': 'sec',
+            'testing': 'test',
+            'deployment': 'deploy',
+            'production': 'prod',
+            'environment': 'env',
+            'api': 'api',
+            'ui': 'ui',
+            'ux': 'ux',
+            'backend': 'backend',
+            'frontend': 'frontend',
+            'fullstack': 'fullstack',
+            'cloud': 'cloud',
+            'aws': 'aws',
+            'azure': 'azure',
+            'google': 'gcp',
+            'docker': 'docker',
+            'kubernetes': 'k8s',
+            'react': 'react',
+            'angular': 'angular',
+            'vue': 'vue',
+            'node': 'node',
+            'python': 'py',
+            'java': 'java',
+            'javascript': 'js',
+            'typescript': 'ts',
+            'php': 'php',
+            'ruby': 'ruby',
+            'go': 'go',
+            'rust': 'rust',
+            'c++': 'cpp',
+            'c#': 'csharp',
+            'dotnet': 'dotnet',
+            'spring': 'spring',
+            'django': 'django',
+            'flask': 'flask',
+            'express': 'express',
+            'laravel': 'laravel',
+            'rails': 'rails'
+        }
+        
+        # Erstelle einen neuen Namen basierend auf Schlüsselwörtern
+        new_words = []
+        for word in words:
+            # Entferne unwichtige Wörter
+            if word in ['the', 'and', 'or', 'for', 'with', 'from', 'to', 'in', 'on', 'at', 'by', 'of', 'a', 'an']:
+                continue
+            
+            # Verwende Abkürzungen für technische Begriffe
+            if word in tech_keywords:
+                new_words.append(tech_keywords[word])
+            else:
+                # Behalte wichtige Wörter, aber kürze sie wenn nötig
+                if len(word) > 8:
+                    new_words.append(word[:8])
+                else:
+                    new_words.append(word)
+        
+        # Erstelle den neuen Namen
+        new_name = '_'.join(new_words)
+        
+        # Wenn immer noch zu lang, verwende nur die wichtigsten Wörter
+        if len(new_name) > max_length:
+            # Verwende nur die ersten 2-3 wichtigsten Wörter
+            important_words = new_words[:3]
+            new_name = '_'.join(important_words)
+            
+            # Wenn immer noch zu lang, kürze auf max_length
+            if len(new_name) > max_length:
+                new_name = new_name[:max_length]
+        
+        return new_name
+    
+
 
     def _replace_placeholders_in_xml(self, doc, replacements: dict):
         """Replace placeholders in XML elements (shapes, textboxes, etc.)"""
@@ -246,12 +357,12 @@ class WordDocumentGenerator:
                         element.text = element.text.replace(placeholder, replacement)
                         self.logger.info("Replaced %s in XML element", placeholder)
 
-    def create_document(self, concept: Dict[str, Any], project_name: Optional[str] = None, initiator: Optional[str] = None, upwork_link: Optional[str] = None, description: Optional[str] = None) -> str:
+    def create_document(self, concept: Dict[str, Any], project_name: Optional[str] = None, initiator: Optional[str] = None, upwork_link: Optional[str] = None, description: Optional[str] = None, skip_path_warnings: bool = False) -> str:
         """Create a Word document from the concept data using template replacement. Speichert alles im Projektordner mit Versionierung."""
         self.logger.info("Starting document creation")
         
         # --- Namensgenerierung: KI nur wenn Limit überschritten ---
-        max_name_len = 25
+        max_name_len = 30  # Reduziert auf 30 für kürzere, prägnante Namen
         # Bereinige den ursprünglichen Namen
         original_safe_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
         original_safe_name = re.sub(r'\s+', '_', original_safe_name)
@@ -521,11 +632,16 @@ class WordDocumentGenerator:
         if len(str(docx_path)) > max_path_length:
             warn_msg = f"Der Pfad der Word-Datei ist zu lang (>{max_path_length} Zeichen)!\nBitte wähle einen kürzeren Projektnamen oder ein anderes Zielverzeichnis.\n\nPfad:\n{docx_path}"
             self.logger.error(warn_msg)
-            try:
-                messagebox.showerror("Pfad zu lang", warn_msg)
-            except Exception:
-                pass  # Falls kein GUI-Kontext vorhanden ist
-            raise OSError(warn_msg)
+            
+            # Skip warning during bulk generation
+            if not skip_path_warnings:
+                try:
+                    messagebox.showerror("Pfad zu lang", warn_msg)
+                except Exception:
+                    pass  # Falls kein GUI-Kontext vorhanden ist
+                raise OSError(warn_msg)
+            else:
+                self.logger.warning(f"Pfadlängen-Warnung übersprungen (Bulk-Modus): {docx_path}")
 
         return str(docx_path)
 
@@ -558,7 +674,7 @@ class WordDocumentGenerator:
         self._add_metadata(doc, concept)
         
         # Generate filename with versioning (KI nur wenn Limit überschritten)
-        max_name_len = 25
+        max_name_len = 30  # Reduziert auf 30 für kürzere, prägnante Namen
         # Bereinige den ursprünglichen Namen
         original_safe_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
         original_safe_name = re.sub(r'\s+', '_', original_safe_name)

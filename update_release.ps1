@@ -47,6 +47,15 @@ Write-Host "  - release\output\docx" -ForegroundColor White
 Write-Host "  - release\output\json" -ForegroundColor White
 Write-Host "  - release\output\logs" -ForegroundColor White
 
+Write-Host "`n2.2. Copying templates folder..." -ForegroundColor Yellow
+if (Test-Path "templates") {
+    Copy-Item "templates" "release\" -Recurse -Force
+    Write-Host "Templates folder copied to release." -ForegroundColor Green
+}
+else {
+    Write-Host "Warning: templates folder not found!" -ForegroundColor Yellow
+}
+
 Write-Host "`n3. Updating configuration files..." -ForegroundColor Yellow
 Copy-Item "section_descriptions.json" "release\" -Force
 Copy-Item "logging_config.json" "release\" -Force
@@ -60,6 +69,7 @@ Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "Release update completed!" -ForegroundColor Green
 Write-Host "New files:" -ForegroundColor White
 Write-Host "- release\Zeta_Proposer.exe (updated)" -ForegroundColor White
+Write-Host "- release\templates\ (copied)" -ForegroundColor White
 Write-Host "- $zipName (new version)" -ForegroundColor White
 Write-Host "========================================" -ForegroundColor Green
 

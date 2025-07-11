@@ -167,6 +167,8 @@ class ZetaProposerGUI:
         load_btn.pack(side=tk.LEFT, padx=(0, 10))
         generate_json_btn = ttk.Button(button_frame, text="Generate from Specification", command=self.generate_json_from_specification)
         generate_json_btn.pack(side=tk.LEFT, padx=(0, 10))
+        bulk_generate_btn = ttk.Button(button_frame, text="Bulk Generate Documents", command=self.bulk_generate_documents)
+        bulk_generate_btn.pack(side=tk.LEFT, padx=(0, 10))
         self.progress_var = tk.StringVar(value="Ready")
         progress_label = ttk.Label(button_frame, textvariable=self.progress_var)
         progress_label.pack(side=tk.LEFT, padx=(20, 0))
@@ -709,6 +711,169 @@ class ZetaProposerGUI:
             error_message = f"Error generating JSON file: {str(e)}"
             messagebox.showerror("Error", error_message)
             self.status_var.set("JSON generation failed")
+    
+    def bulk_generate_documents(self):
+        """Generate Word documents from a folder containing JSON files"""
+        # Select source folder containing JSON files
+        source_folder = filedialog.askdirectory(
+            title="Select Folder Containing JSON Files"
+        )
+        
+        if not source_folder:
+            return
+            
+        # Select target folder for generated Word documents
+        target_folder = filedialog.askdirectory(
+            title="Select Target Folder for Word Documents"
+        )
+        
+        if not target_folder:
+            return
+            
+        # Find all JSON files in the source folder
+        source_path = Path(source_folder)
+        json_files = list(source_path.glob("*.json"))
+        
+        if not json_files:
+            messagebox.showwarning("Warning", f"No JSON files found in {source_folder}")
+            return
+            
+        # Confirm with user
+        confirm_message = f"Found {len(json_files)} JSON files in {source_folder}.\n\nWord documents will be generated in {target_folder}.\n\nContinue?"
+        if not messagebox.askyesno("Confirm Bulk Generation", confirm_message):
+            return
+            
+        # Start bulk generation in a separate thread
+        thread = threading.Thread(target=self._bulk_generate_documents_thread, args=(json_files, target_folder))
+        thread.daemon = True
+        thread.start()
+    
+    def _bulk_generate_documents_thread(self, json_files, target_folder):
+        """Generate Word documents from JSON files in a separate thread"""
+        try:
+            self.setup_logger()
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info("Starting bulk document generation")
+                self.logger.info(f"Processing {len(json_files)} JSON files")
+                self.logger.info(f"Target folder: {target_folder}")
+            
+            # Create target folder if it doesn't exist
+            target_path = Path(target_folder)
+            target_path.mkdir(parents=True, exist_ok=True)
+            
+            # Set AI provider settings
+            provider = self.ai_provider_var.get()
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info("Using AI provider: %s", provider)
+            
+            if provider == "openai":
+                os.environ["OPENAI_API_KEY"] = self.openai_api_key
+                os.environ["OPENAI_MODEL"] = self.openai_model
+            elif provider == "ollama":
+                os.environ["OLLAMA_URL"] = self.ollama_url
+                os.environ["OLLAMA_MODEL"] = self.ollama_model
+                
+            # Set alignment threshold
+            self.ai_service.alignment_threshold = self.alignment_threshold
+            
+            # Load proposal context if available
+            proposal_context = self._load_full_proposal_context()
+            
+            successful_generations = 0
+            failed_generations = 0
+            
+            for i, json_file in enumerate(json_files):
+                try:
+                    # Update progress
+                    progress_text = f"Processing {i+1}/{len(json_files)}: {json_file.name}"
+                    self.root.after(0, lambda t=progress_text: self.progress_var.set(t))
+                    self.root.after(0, lambda t=progress_text: self.status_var.set(t))
+                    
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.info(f"Processing file {i+1}/{len(json_files)}: {json_file.name}")
+                    
+                    # Load JSON data
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    # Extract project data
+                    project_name = data.get('name', '').strip()
+                    upwork_link = data.get('link', '').strip()
+                    description = data.get('description', '').strip()
+                    
+                    if not project_name:
+                        if hasattr(self, 'logger') and self.logger:
+                            self.logger.warning(f"No project name found in {json_file.name}")
+                        failed_generations += 1
+                        continue
+                        
+                    if not description:
+                        if hasattr(self, 'logger') and self.logger:
+                            self.logger.warning(f"No description found in {json_file.name}")
+                        failed_generations += 1
+                        continue
+                    
+                    # Generate concept using AI
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.info(f"Generating concept for: {project_name}")
+                    
+                    concept = self.ai_service.generate_technical_concept_sections(
+                        description, 
+                        provider=provider, 
+                        proposal_context=proposal_context,
+                        cancel_callback=lambda: False  # No cancellation during bulk processing
+                    )
+                    
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.info(f"Concept generated for: {project_name}")
+                    
+                    # Create Word document
+                    # Temporarily change output directory for this generation
+                    original_output_dir = self.word_generator.output_dir
+                    self.word_generator.output_dir = Path(target_folder)
+                    
+                    docx_path = self.word_generator.create_document(
+                        concept, 
+                        project_name=project_name, 
+                        initiator=self.initiator,
+                        upwork_link=upwork_link,
+                        description=description,
+                        skip_path_warnings=True  # Skip path warnings during bulk generation
+                    )
+                    
+                    # Restore original output directory
+                    self.word_generator.output_dir = original_output_dir
+                    
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.info(f"Word document created: {docx_path}")
+                    
+                    # Note: Documents are NOT automatically opened during bulk generation
+                    
+                    successful_generations += 1
+                    
+                except Exception as e:
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.error(f"Error processing {json_file.name}: {str(e)}")
+                    failed_generations += 1
+                    continue
+            
+            # Show completion message
+            completion_message = f"Bulk generation completed!\n\nSuccessful: {successful_generations}\nFailed: {failed_generations}\n\nDocuments saved in: {target_folder}"
+            
+            self.root.after(0, lambda: self.progress_var.set("Ready"))
+            self.root.after(0, lambda: self.status_var.set(f"Bulk generation completed: {successful_generations} successful, {failed_generations} failed"))
+            self.root.after(0, lambda: messagebox.showinfo("Bulk Generation Complete", completion_message))
+            
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info(f"Bulk generation completed: {successful_generations} successful, {failed_generations} failed")
+                
+        except Exception as e:
+            error_message = f"Error during bulk generation: {str(e)}"
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.error(error_message)
+            self.root.after(0, lambda: self.progress_var.set("Ready"))
+            self.root.after(0, lambda: self.status_var.set("Bulk generation failed"))
+            self.root.after(0, lambda: messagebox.showerror("Error", error_message))
     
     def generate_concept(self):
         """Start the concept generation process"""

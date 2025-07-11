@@ -36,6 +36,15 @@ echo   - release\output\json
 echo   - release\output\logs
 
 echo.
+echo 2.2. Copying templates folder...
+if exist "templates" (
+    xcopy templates release\templates /E /I /Y
+    echo Templates folder copied to release.
+) else (
+    echo Warning: templates folder not found!
+)
+
+echo.
 echo 3. Updating configuration files...
 copy section_descriptions.json release\ /Y
 copy logging_config.json release\ /Y
@@ -50,6 +59,7 @@ echo ========================================
 echo Release update completed!
 echo New files:
 echo - release\Zeta_Proposer.exe (updated)
+echo - release\templates\ (copied)
 echo - Zeta_Proposer_v1.1.zip (new version)
 echo ========================================
 pause 

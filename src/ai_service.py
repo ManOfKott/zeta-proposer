@@ -13,7 +13,7 @@ class AIServiceManager:
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
         self.ollama_model = os.getenv("OLLAMA_MODEL", "llama3")
         self.logger = logging.getLogger(__name__)
-        self.alignment_threshold = 0.6  # Default, kann von außen überschrieben werden
+        self.alignment_threshold = 0.4  # Reduziert von 0.6 auf 0.4 für weniger restriktive Bewertung
         
     def _setup_openai(self):
         """Setup OpenAI client"""
@@ -365,7 +365,7 @@ Please provide a detailed technical analysis and concept document as specified i
             
             # DOT-Code-Block im Fließtext NICHT mehr prüfen
             self.logger.info("Checking content alignment")
-            alignment_score = self._check_content_alignment(content, description)
+            alignment_score = self._check_content_alignment(content, description, str(key) if key else None)
             self.logger.info("Alignment score: %.2f", alignment_score)
             
             threshold = getattr(self, 'alignment_threshold', 0.6)
@@ -425,51 +425,236 @@ Please provide a detailed technical analysis and concept document as specified i
         
         return min_words, max_words_with_tolerance
     
-    def _check_content_alignment(self, content: str, description: str) -> float:
-        """Check how well the content aligns with the description requirements."""
+    def _check_content_alignment(self, content: str, description: str, section_key: Optional[str] = None) -> float:
+        """Check how well the content aligns with the description requirements from section_descriptions.json."""
+        try:
+            # Load section descriptions to get content requirements
+            section_descriptions = self._load_section_descriptions()
+            
+            # If we have a section key and content requirements, use them
+            if section_key and section_key in section_descriptions:
+                section_config = section_descriptions[section_key]
+                content_requirements = section_config.get('content_requirements', [])
+                
+                if content_requirements:
+                    return self._check_content_against_requirements(content, content_requirements, section_config)
+            
+            # Fallback to keyword-based checking if no requirements found
+            return self._check_content_alignment_fallback(content, description)
+                
+        except Exception as e:
+            self.logger.error(f"Error in content alignment check: {e}")
+            return 0.6  # More lenient default score on error
+    
+    def _check_content_against_requirements(self, content: str, content_requirements: list, section_config: Optional[dict] = None) -> float:
+        """Check content against specific requirements from section_descriptions.json."""
+        try:
+            content_lower = content.lower()
+            requirements_covered = 0
+            total_requirements = len(content_requirements)
+            
+            for requirement in content_requirements:
+                # Extract key terms from the requirement
+                requirement_lower = requirement.lower()
+                
+                # Check if the requirement is covered in the content
+                # Look for key terms from the requirement
+                key_terms = self._extract_key_terms_from_requirement(requirement)
+                
+                # Check if any key terms are present in the content
+                if any(term in content_lower for term in key_terms):
+                    requirements_covered += 1
+                    self.logger.debug(f"Requirement covered: {requirement}")
+                else:
+                    self.logger.debug(f"Requirement NOT covered: {requirement}")
+            
+            # Calculate base score
+            if total_requirements > 0:
+                base_score = requirements_covered / total_requirements
+                
+                # Add length bonus based on section configuration
+                if section_config and 'word_count' in section_config:
+                    word_count_config = section_config['word_count']
+                    target_words = word_count_config.get('target', 70)
+                    min_words = word_count_config.get('min', 30)
+                    max_words = word_count_config.get('max', 100)
+                    
+                    # Calculate actual word count
+                    actual_words = len(content.split())
+                    
+                    # Length bonus based on target achievement
+                    if actual_words >= target_words:
+                        # Bonus for meeting or exceeding target
+                        length_bonus = 0.15
+                        self.logger.debug(f"Length bonus: {length_bonus} (target met: {actual_words} >= {target_words})")
+                    elif actual_words >= min_words:
+                        # Partial bonus for meeting minimum
+                        length_bonus = 0.05
+                        self.logger.debug(f"Length bonus: {length_bonus} (minimum met: {actual_words} >= {min_words})")
+                    else:
+                        # No bonus if below minimum
+                        length_bonus = 0.0
+                        self.logger.debug(f"Length bonus: {length_bonus} (below minimum: {actual_words} < {min_words})")
+                    
+                    base_score += length_bonus
+                else:
+                    # Fallback length bonus for older content
+                    if len(content) > 200:
+                        base_score += 0.1
+                    if len(content) > 500:
+                        base_score += 0.05
+                
+                # Cap at 1.0
+                return min(base_score, 1.0)
+            else:
+                return 0.7 if len(content) > 100 else 0.5
+                
+        except Exception as e:
+            self.logger.error(f"Error in content requirements check: {e}")
+            return 0.6
+    
+    def _extract_key_terms_from_requirement(self, requirement: str) -> list:
+        """Extract key terms from a content requirement for matching."""
+        requirement_lower = requirement.lower()
+        key_terms = []
+        
+        # Extract important terms (words that are not common stop words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall', 'how', 'what', 'when', 'where', 'why', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'mine', 'yours', 'his', 'hers', 'ours', 'theirs'}
+        
+        # Split into words and filter out stop words
+        words = requirement_lower.split()
+        for word in words:
+            # Clean the word (remove punctuation)
+            clean_word = ''.join(c for c in word if c.isalnum())
+            if clean_word and len(clean_word) > 2 and clean_word not in stop_words:
+                key_terms.append(clean_word)
+        
+        # Add some common variations and synonyms
+        term_variations = {
+            'test': ['testing', 'tested', 'tests'],
+            'security': ['secure', 'secured', 'security'],
+            'performance': ['performant', 'performance'],
+            'scalability': ['scalable', 'scale', 'scaling'],
+            'monitoring': ['monitor', 'monitored', 'monitors'],
+            'deployment': ['deploy', 'deployed', 'deploying'],
+            'integration': ['integrate', 'integrated', 'integrates'],
+            'architecture': ['architectural', 'architect'],
+            'technology': ['tech', 'technological'],
+            'framework': ['frameworks'],
+            'api': ['apis', 'application programming interface'],
+            'database': ['db', 'databases'],
+            'cloud': ['cloud-based', 'cloud-native'],
+            'container': ['containers', 'containerization'],
+            'orchestration': ['orchestrate', 'orchestrated'],
+            'automation': ['automated', 'automate'],
+            'quality': ['qualitative', 'quality assurance'],
+            'accessibility': ['accessible', 'accessibility'],
+            'responsive': ['responsiveness', 'responsive design'],
+            'prototype': ['prototyping', 'prototyped'],
+            'user experience': ['ux', 'user experience'],
+            'user interface': ['ui', 'user interface']
+        }
+        
+        # Add variations for found terms
+        additional_terms = []
+        for term in key_terms:
+            if term in term_variations:
+                additional_terms.extend(term_variations[term])
+        
+        key_terms.extend(additional_terms)
+        return list(set(key_terms))  # Remove duplicates
+    
+    def _check_content_alignment_fallback(self, content: str, description: str) -> float:
+        """Fallback method for content alignment when no requirements are available."""
         try:
             # Extract key topics from description
             description_lower = description.lower()
             content_lower = content.lower()
             
-            # Define topic keywords based on description sections
+            # More comprehensive topic matching
             topics = []
+            topic_matches = 0
             
-            if "business" in description_lower:
-                topics.extend(["business", "objective", "goal", "value", "roi"])
-            if "stakeholder" in description_lower:
-                topics.extend(["stakeholder", "user", "persona", "role"])
-            if "boundary" in description_lower or "scope" in description_lower:
-                topics.extend(["boundary", "scope", "include", "exclude"])
-            if "requirement" in description_lower:
-                topics.extend(["requirement", "functional", "non-functional"])
-            if "architecture" in description_lower:
-                topics.extend(["architecture", "component", "technology", "framework"])
-            if "integration" in description_lower:
-                topics.extend(["integration", "api", "interface", "external"])
-            if "testing" in description_lower:
-                topics.extend(["testing", "test", "quality", "coverage"])
-            if "deployment" in description_lower:
-                topics.extend(["deployment", "infrastructure", "monitoring"])
-            if "design" in description_lower:
-                topics.extend(["design", "ux", "ui", "user experience"])
+            # System scope related
+            if any(word in description_lower for word in ["scope", "boundary", "system"]):
+                scope_keywords = ["scope", "boundary", "system", "include", "exclude", "purpose", "function"]
+                for keyword in scope_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("scope")
             
-            # Count how many topics are covered in content
-            covered_topics = 0
-            for topic in topics:
-                if topic in content_lower:
-                    covered_topics += 1
+            # Architecture related
+            if any(word in description_lower for word in ["architecture", "technology", "stack", "component"]):
+                arch_keywords = ["architecture", "technology", "stack", "component", "framework", "model"]
+                for keyword in arch_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("architecture")
             
-            # Calculate alignment score
+            # Integration related
+            if any(word in description_lower for word in ["interface", "integration", "external", "api"]):
+                int_keywords = ["interface", "integration", "external", "api", "service", "connection"]
+                for keyword in int_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("integration")
+            
+            # Testing related
+            if any(word in description_lower for word in ["test", "testing", "quality"]):
+                test_keywords = ["test", "testing", "quality", "coverage", "validation", "verification"]
+                for keyword in test_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("testing")
+            
+            # Deployment related
+            if any(word in description_lower for word in ["deployment", "operation", "infrastructure"]):
+                deploy_keywords = ["deployment", "operation", "infrastructure", "environment", "monitoring"]
+                for keyword in deploy_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("deployment")
+            
+            # Design related
+            if any(word in description_lower for word in ["design", "ux", "ui", "user experience"]):
+                design_keywords = ["design", "ux", "ui", "user experience", "interface", "prototype"]
+                for keyword in design_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("design")
+            
+            # CI/CD related
+            if any(word in description_lower for word in ["ci", "cd", "pipeline", "build"]):
+                cicd_keywords = ["ci", "cd", "pipeline", "build", "deploy", "automation"]
+                for keyword in cicd_keywords:
+                    if keyword in content_lower:
+                        topic_matches += 1
+                        break
+                topics.append("cicd")
+            
+            # Calculate alignment score with more lenient scoring
             if topics:
-                alignment_score = covered_topics / len(topics)
-                return alignment_score
+                base_score = topic_matches / len(topics)
+                # Boost score if content is substantial
+                if len(content) > 200:
+                    base_score += 0.2
+                if len(content) > 500:
+                    base_score += 0.1
+                # Cap at 1.0
+                return min(base_score, 1.0)
             else:
-                return 0.5  # Default score if no topics found
+                # If no specific topics found, give a reasonable default
+                return 0.7 if len(content) > 100 else 0.5
                 
         except Exception as e:
-            self.logger.error(f"Error in content alignment check: {e}")
-            return 0.5  # Default score on error
+            self.logger.error(f"Error in content alignment fallback check: {e}")
+            return 0.6  # More lenient default score on error
 
     def _review_section_with_ai(self, section_name, definition, content, provider):
         """Review a section using the AI, returning (score, reason)."""

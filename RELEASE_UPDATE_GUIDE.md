@@ -46,6 +46,9 @@ pyinstaller zeta_proposer.spec
 # Neue EXE kopieren
 copy dist\Zeta_Proposer.exe release\
 
+# Templates-Ordner kopieren
+xcopy templates release\templates /E /I /Y
+
 # Konfigurationsdateien aktualisieren (falls geändert)
 copy section_descriptions.json release\
 copy logging_config.json release\
@@ -67,7 +70,7 @@ powershell Compress-Archive -Path release\* -DestinationPath Zeta_Proposer_v1.1.
 - `logging_config.json` - Logging-Einstellungen
 - `README.md` - Dokumentation
 - `INSTALL.md` - Installationsanleitung
-- `templates/` - Word-Templates
+- `templates/` - Word-Templates (wird automatisch kopiert)
 - `output/` - Ausgabe-Ordnerstruktur (docx, json, logs)
 
 ### ⚠️ **Manuell prüfen:**
