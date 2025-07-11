@@ -8,7 +8,7 @@ Ein KI-gestützter Generator für technische Konzeptdokumente mit automatischer 
 
 1. **Download**: Laden Sie die neueste `Zeta_Proposer.exe` aus dem [Releases](https://github.com/your-repo/releases) Bereich herunter
 2. **Ausführen**: Doppelklicken Sie auf `Zeta_Proposer.exe` - keine Installation erforderlich!
-3. **Konfiguration**: Erstellen Sie eine `.env` Datei im gleichen Ordner (siehe Konfiguration unten)
+3. **Konfiguration**: Die `config.json` wird automatisch beim ersten Start erstellt
 
 ### Für Entwickler
 
@@ -28,6 +28,8 @@ python main.py
 - **Graphviz** (für Diagramm-Erstellung)
 
 ## ⚙️ Konfiguration
+
+**Hinweis**: Die `config.json` wird automatisch beim ersten Start der Anwendung erstellt. Sie können die Einstellungen über die GUI unter "Einstellungen" anpassen.
 
 ### 1. KI-Provider konfigurieren
 
@@ -96,6 +98,8 @@ output/
 └── logs/                   # Log-Dateien
     └── zeta_log_YYYYMMDD_HHMMSS.log
 ```
+
+**Hinweis**: Die `output/` Ordnerstruktur ist bereits im Release enthalten und wird automatisch erstellt.
 
 ## 🔧 Sektionen-Konfiguration
 

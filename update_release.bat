@@ -25,9 +25,21 @@ echo 2. Updating release folder...
 copy dist\Zeta_Proposer.exe release\ /Y
 
 echo.
+echo 2.1. Ensuring output directories exist...
+if not exist "release\output" mkdir "release\output"
+if not exist "release\output\docx" mkdir "release\output\docx"
+if not exist "release\output\json" mkdir "release\output\json"
+if not exist "release\output\logs" mkdir "release\output\logs"
+echo Output directories created/verified:
+echo   - release\output\docx
+echo   - release\output\json
+echo   - release\output\logs
+
+echo.
 echo 3. Updating configuration files...
 copy section_descriptions.json release\ /Y
 copy logging_config.json release\ /Y
+REM Note: config.json is NOT copied as it's automatically created on first run
 
 echo.
 echo 4. Creating new ZIP archive...

@@ -68,12 +68,17 @@ powershell Compress-Archive -Path release\* -DestinationPath Zeta_Proposer_v1.1.
 - `README.md` - Dokumentation
 - `INSTALL.md` - Installationsanleitung
 - `templates/` - Word-Templates
+- `output/` - Ausgabe-Ordnerstruktur (docx, json, logs)
 
 ### ⚠️ **Manuell prüfen:**
 
 - `zeta_proposer.spec` - PyInstaller-Konfiguration
 - `requirements.txt` - Abhängigkeiten
 - README-Dateien - Falls neue Features hinzugefügt wurden
+
+### 📝 **Nicht in Release enthalten:**
+
+- `config.json` - Wird automatisch beim ersten Start erstellt (von Scripts ausgeschlossen)
 
 ## Versionierung
 

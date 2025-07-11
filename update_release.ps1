@@ -36,9 +36,21 @@ if (-not $SkipBuild) {
 Write-Host "`n2. Updating release folder..." -ForegroundColor Yellow
 Copy-Item "dist\Zeta_Proposer.exe" "release\" -Force
 
+Write-Host "`n2.1. Ensuring output directories exist..." -ForegroundColor Yellow
+# Create output directory structure
+New-Item -Path "release\output" -ItemType Directory -Force | Out-Null
+New-Item -Path "release\output\docx" -ItemType Directory -Force | Out-Null
+New-Item -Path "release\output\json" -ItemType Directory -Force | Out-Null
+New-Item -Path "release\output\logs" -ItemType Directory -Force | Out-Null
+Write-Host "Output directories created/verified:" -ForegroundColor Cyan
+Write-Host "  - release\output\docx" -ForegroundColor White
+Write-Host "  - release\output\json" -ForegroundColor White
+Write-Host "  - release\output\logs" -ForegroundColor White
+
 Write-Host "`n3. Updating configuration files..." -ForegroundColor Yellow
 Copy-Item "section_descriptions.json" "release\" -Force
 Copy-Item "logging_config.json" "release\" -Force
+# Note: config.json is NOT copied as it's automatically created on first run
 
 Write-Host "`n4. Creating new ZIP archive..." -ForegroundColor Yellow
 $zipName = "Zeta_Proposer_v$Version.zip"
