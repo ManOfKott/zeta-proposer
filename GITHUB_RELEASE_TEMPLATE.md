@@ -1,9 +1,10 @@
-# 🚀 Zeta Proposer v1.0
+# �� Zeta Proposer v1.0.1
 
 ## ✨ Features
 
 - **KI-gestützte Konzeptgenerierung** mit OpenAI GPT-4o (Standard)
 - **Word-Dokument-Export** mit professioneller Formatierung
+- **JSON-Spezifikationsgenerierung** für Datenaustausch
 - **Benutzerfreundliche GUI** für einfache Bedienung
 - **OpenAI & Ollama Support** für Flexibilität
 - **Automatische Diagramm-Erstellung** mit Graphviz
@@ -43,6 +44,8 @@ Generierte Dateien werden im `output/` Ordner gespeichert:
 output/
 ├── docx/                    # Word-Dokumente
 │   └── Projektname_YYYY-MM-DD.docx
+├── json/                    # JSON-Spezifikationsdateien
+│   └── Projektname_YYYY-MM-DD.json
 ├── diagrams/               # PNG-Diagramme
 │   └── section_name.png
 └── logs/                   # Log-Dateien
@@ -53,14 +56,23 @@ output/
 
 1. **Projektname eingeben**: Aussagekräftigen Namen eingeben
 2. **Beschreibung schreiben**: Detaillierte Projektbeschreibung
-3. **Generate Concept klicken**: KI generiert automatisch
-4. **Word-Dokument öffnet sich**: Sofort einsatzbereit
+3. **Generate Technical Concept**: KI generiert Word-Dokument
+4. **Generate from Specification**: KI generiert JSON-Datei
+5. **Word-Dokument öffnet sich**: Sofort einsatzbereit
+
+## 🆕 Neue Features in v1.0.1
+
+- **JSON-Spezifikationsgenerierung**: Neue Schaltfläche "Generate from Specification"
+- **Konfigurierbare JSON-Ausgabe**: Einstellbare JSON-Ausgabeordner
+- **Verbesserte Fehlerbehandlung**: Robustere Fehlerbehandlung für Dateioperationen
+- **Bugfixes**: Behebung von Indentierungsfehlern und Variablen-Scope-Problemen
 
 ## 🐛 Bekannte Probleme
 
 - **Graphviz nicht gefunden**: Installieren Sie Graphviz von https://graphviz.org/download/
 - **OpenAI API Key nicht gefunden**: Überprüfen Sie die Einstellungen
 - **Word-Dokument kann nicht erstellt werden**: Überprüfen Sie Schreibrechte im `output/` Ordner
+- **JSON-Datei kann nicht erstellt werden**: Überprüfen Sie Schreibrechte im `output/json/` Ordner
 
 ## 📞 Support
 
@@ -78,4 +90,4 @@ output/
 
 **Entwickelt mit ❤️ für effiziente technische Dokumentation**
 
-📦 **Download**: [Zeta_Proposer_v1.0.zip](link)
+📦 **Download**: [Zeta_Proposer_v1.0.1.zip](link)

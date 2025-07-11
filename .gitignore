@@ -245,7 +245,7 @@ logs/
 project_descriptions/
 
 # Generated releases
-release/
+release/*
 Zeta_Proposer_v*.zip
 
 # Test files

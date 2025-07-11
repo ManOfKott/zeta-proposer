@@ -1,6 +1,6 @@
 # Zeta Proposer - Technical Concept Generator
 
-Ein KI-gestützter Generator für technische Konzeptdokumente mit automatischer Diagramm-Erstellung.
+Ein KI-gestützter Generator für technische Konzeptdokumente mit automatischer Diagramm-Erstellung und JSON-Spezifikationsgenerierung.
 
 ## 🚀 Download & Installation
 
@@ -61,11 +61,13 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 ### Schritt 4: Generierung starten
 
-- Klicken Sie auf "Generate Concept"
+- **Word-Dokument**: Klicken Sie auf "Generate Technical Concept"
+- **JSON-Spezifikation**: Klicken Sie auf "Generate from Specification"
 - Das System erstellt automatisch:
   - Technische Konzeptdokumente
   - Diagramme (falls aktiviert)
   - Word-Dokumente mit allen Sektionen
+  - JSON-Dateien für Datenaustausch
 
 ## 📁 Ausgabe
 
@@ -75,6 +77,8 @@ Generierte Dateien werden im `output/` Ordner gespeichert:
 output/
 ├── docx/                    # Word-Dokumente
 │   └── Projektname_YYYY-MM-DD.docx
+├── json/                    # JSON-Spezifikationsdateien
+│   └── Projektname_YYYY-MM-DD.json
 ├── diagrams/               # PNG-Diagramme
 │   └── section_name.png
 └── logs/                   # Log-Dateien
@@ -106,6 +110,7 @@ Die Sektionen können in `section_descriptions.json` angepasst werden:
 - ✅ **KI-gestützte Inhaltsgenerierung**
 - ✅ **Automatische Diagramm-Erstellung**
 - ✅ **Word-Dokument-Export**
+- ✅ **JSON-Spezifikationsgenerierung**
 - ✅ **Template-Unterstützung**
 - ✅ **Manuelle Projektnamen-Eingabe**
 - ✅ **Konfigurierbare Wortanzahl-Grenzen**
@@ -125,6 +130,10 @@ Die Sektionen können in `section_descriptions.json` angepasst werden:
 ### Problem: "Word-Dokument kann nicht erstellt werden"
 
 **Lösung**: Stellen Sie sicher, dass der `output/` Ordner beschreibbar ist
+
+### Problem: "JSON-Datei kann nicht erstellt werden"
+
+**Lösung**: Stellen Sie sicher, dass der `output/json/` Ordner beschreibbar ist
 
 ### Problem: "Keine Internetverbindung"
 

@@ -79,12 +79,36 @@ powershell Compress-Archive -Path release\* -DestinationPath Zeta_Proposer_v1.1.
 ### 📝 **Nicht in Release enthalten:**
 
 - `config.json` - Wird automatisch beim ersten Start erstellt (von Scripts ausgeschlossen)
+- `release/` - Release-Ordner wird von Git ignoriert
+
+## Git-Konfiguration
+
+### .gitignore Einstellungen
+
+Der `release/` Ordner wird automatisch von Git ignoriert:
+
+```gitignore
+# Generated releases
+release/
+Zeta_Proposer_v*.zip
+```
+
+### Release-Ordner aus Tracking entfernen
+
+Falls der `release/` Ordner bereits getrackt wird:
+
+```bash
+# Release-Ordner aus Git-Tracking entfernen
+git rm -r --cached release/
+git commit -m "Remove release folder from tracking"
+```
 
 ## Versionierung
 
 ### Version-Nummern:
 
 - **v1.0** - Erste Version
+- **v1.0.1** - JSON-Generierung und Bugfixes
 - **v1.1** - Bugfixes, kleine Verbesserungen
 - **v1.2** - Neue Features
 - **v2.0** - Große Änderungen
@@ -93,7 +117,7 @@ powershell Compress-Archive -Path release\* -DestinationPath Zeta_Proposer_v1.1.
 
 1. **ZIP hochladen** zu GitHub Releases
 2. **Changelog** hinzufügen
-3. **Version taggen** (v1.1, v1.2, etc.)
+3. **Version taggen** (v1.0.1, v1.1, v1.2, etc.)
 
 ## Troubleshooting
 
@@ -120,6 +144,17 @@ dir release\
 dir dist\
 ```
 
+### Problem: Release-Ordner wird getrackt
+
+```bash
+# Überprüfen ob release/ in .gitignore steht
+git check-ignore release/
+
+# Falls nicht ignoriert, aus Tracking entfernen
+git rm -r --cached release/
+git commit -m "Remove release folder from tracking"
+```
+
 ## Checkliste vor Release
 
 - [ ] Code getestet
@@ -128,6 +163,7 @@ dir dist\
 - [ ] README-Dateien aktuell
 - [ ] ZIP-Archiv erstellt
 - [ ] Version dokumentiert
+- [ ] Release-Ordner wird von Git ignoriert
 
 ---
 

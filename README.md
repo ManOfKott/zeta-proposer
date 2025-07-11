@@ -5,7 +5,7 @@ Ein intelligentes Tool zur automatischen Generierung technischer Konzepte aus So
 ## Features
 
 - **KI-gestützte Analyse**: Unterstützt sowohl OpenAI GPT als auch Ollama für die Konzeptgenerierung
-- **Intelligente Diagrammerstellung**: Automatische Erstellung von Architektur- und Systemdiagrammen mit Microsoft Visio
+- **Intelligente Diagrammerstellung**: Automatische Erstellung von Architektur- und Systemdiagrammen mit Graphviz
 - **Professionelle Word-Dokumente**: Generierung strukturierter technischer Konzepte im .docx-Format
 - **JSON-Spezifikationsgenerierung**: Erstellung von JSON-Dateien aus Projektspezifikationen für einfache Datenaustausch
 - **Benutzerfreundliche GUI**: Einfache Bedienung über eine intuitive grafische Oberfläche
@@ -16,8 +16,8 @@ Ein intelligentes Tool zur automatischen Generierung technischer Konzepte aus So
 ### Voraussetzungen
 
 - Python 3.8 oder höher
-- Microsoft Visio (für Diagrammerstellung)
-- Windows-Betriebssystem (für Visio-Integration)
+- Graphviz (für Diagrammerstellung)
+- Windows-Betriebssystem (empfohlen)
 
 ### Setup
 
@@ -96,16 +96,18 @@ zeta proposer/
 │   ├── __init__.py
 │   ├── gui.py              # Haupt-GUI-Anwendung
 │   ├── ai_service.py       # KI-Service-Manager
-│   ├── word_generator.py   # Word-Dokument-Generator
-│   └── visio_diagram.py    # Visio-Diagramm-Generator
+│   └── word_generator.py   # Word-Dokument-Generator
 ├── output/                 # Generierte Dokumente
 │   ├── docx/              # Word-Dokumente
 │   ├── json/              # JSON-Spezifikationsdateien
 │   └── logs/              # Log-Dateien
+├── templates/              # Word-Templates
+├── examples/               # Beispiel-Projekte
 ├── venv/                   # Virtuelles Environment
 ├── requirements.txt        # Python-Abhängigkeiten
 ├── main.py                 # Haupt-Einstiegspunkt
 ├── env_example.txt         # Beispiel-Konfiguration
+├── section_descriptions.json # Sektionen-Konfiguration
 └── README.md              # Diese Datei
 ```
 
@@ -118,7 +120,7 @@ zeta proposer/
 
 ### Diagrammerstellung
 
-- **Microsoft Visio**: Automatische Erstellung von:
+- **Graphviz**: Automatische Erstellung von:
   - Systemarchitektur-Diagrammen
   - Datenfluss-Diagrammen
   - Komponenten-Interaktions-Diagrammen
@@ -130,6 +132,12 @@ zeta proposer/
 - **Inhalte**: Alle wichtigen technischen Aspekte
 - **Diagramme**: Automatische Einbettung der generierten Visualisierungen
 
+### JSON-Spezifikationen
+
+- **Format**: Strukturierte JSON-Dateien für Datenaustausch
+- **Inhalte**: Projektmetadaten, Sektionen und Konfigurationen
+- **Verwendung**: Integration in andere Tools und Systeme
+
 ## Zukünftige Features
 
 - [ ] TXT-Datei-Automatisierung für Batch-Verarbeitung
@@ -140,11 +148,11 @@ zeta proposer/
 
 ## Troubleshooting
 
-### Visio-Fehler
+### Graphviz-Fehler
 
-- Stelle sicher, dass Microsoft Visio installiert ist
-- Überprüfe, ob Visio über COM-Automation erreichbar ist
-- **Hinweis**: Das Programm funktioniert auch ohne Visio - Diagramme werden dann übersprungen
+- Stelle sicher, dass Graphviz installiert ist
+- Überprüfe, ob Graphviz im System-PATH verfügbar ist
+- **Hinweis**: Das Programm funktioniert auch ohne Graphviz - Diagramme werden dann übersprungen
 
 ### API-Fehler
 
@@ -163,6 +171,7 @@ zeta proposer/
 - **Import-Fehler**: Führe `pip install -r requirements.txt` aus
 - **GUI startet nicht**: Überprüfe Python-Version (3.8+ erforderlich)
 - **Word-Dokument wird nicht erstellt**: Überprüfe Schreibrechte im `output/`-Ordner
+- **JSON-Dateien werden nicht erstellt**: Überprüfe Schreibrechte im `output/json/`-Ordner
 
 ## Lizenz
 
