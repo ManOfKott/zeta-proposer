@@ -50,12 +50,12 @@
       "Success Criteria - How will we measure success?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 70,
+      "min": 30,
+      "max": 100
     },
     "diagram": {
-      "enabled": true,
+      "enabled": false,
       "type": "context",
       "description": "Visualize the system scope, boundaries, stakeholders, and main components",
       "requirements": [
@@ -84,12 +84,12 @@
       "Technology Stack Details - Specific technologies and versions"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 150,
+      "min": 100,
+      "max": 200
     },
     "diagram": {
-      "enabled": true,
+      "enabled": false,
       "type": "architecture",
       "description": "Show the main components, their relationships, and key technologies",
       "requirements": [
@@ -121,9 +121,9 @@
       "Compliance and Governance - What compliance requirements apply?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 70,
+      "min": 30,
+      "max": 100
     },
     "diagram": {
       "enabled": false,
@@ -157,9 +157,9 @@
       "Automation and Efficiency - How do you optimize the pipeline?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 70,
+      "min": 30,
+      "max": 100
     },
     "diagram": {
       "enabled": false,
@@ -195,9 +195,9 @@
       "Quality Metrics and Reporting - How do you measure quality?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 100,
+      "min": 50,
+      "max": 150
     },
     "diagram": {
       "enabled": false,
@@ -232,9 +232,9 @@
       "Cost Optimization - How do you optimize costs?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 70,
+      "min": 30,
+      "max": 100
     },
     "diagram": {
       "enabled": false,
@@ -269,9 +269,9 @@
       "Performance and Optimization - How do you optimize performance?"
     ],
     "word_count": {
-      "target": 250,
-      "min": 150,
-      "max": 325
+      "target": 70,
+      "min": 30,
+      "max": 100
     },
     "diagram": {
       "enabled": false,

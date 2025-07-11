@@ -76,6 +76,45 @@ class ZetaProposerGUI:
         self.save_config()
         self.root.destroy()
         
+    def show_documents_overview(self):
+        """Zeigt eine Übersicht aller erstellten docx-Dokumente und ermöglicht das Öffnen per Klick."""
+        import glob
+        import platform
+        import subprocess
+        from tkinter import Toplevel, Listbox, Button, END, Scrollbar, RIGHT, Y, LEFT, BOTH
+        docx_dir = Path("output") / "docx"
+        docx_dir.mkdir(parents=True, exist_ok=True)
+        files = sorted(docx_dir.glob("*.docx"), key=os.path.getmtime, reverse=True)
+        win = Toplevel(self.root)
+        win.title("Erstellte Dokumente")
+        win.geometry("500x400")
+        lb = Listbox(win, width=80)
+        lb.pack(side=LEFT, fill=BOTH, expand=True)
+        sb = Scrollbar(win)
+        sb.pack(side=RIGHT, fill=Y)
+        lb.config(yscrollcommand=sb.set)
+        sb.config(command=lb.yview)
+        for f in files:
+            lb.insert(END, f.name)
+        def open_selected(event=None):
+            sel = lb.curselection()
+            if not sel:
+                return
+            file_path = docx_dir / lb.get(sel[0])
+            file_path = file_path.resolve()
+            try:
+                if platform.system() == "Windows":
+                    os.startfile(str(file_path))
+                elif platform.system() == "Darwin":
+                    subprocess.Popen(["open", str(file_path)])
+                else:
+                    subprocess.Popen(["xdg-open", str(file_path)])
+            except Exception as e:
+                messagebox.showerror("Fehler", f"Konnte Datei nicht öffnen: {e}")
+        lb.bind('<Double-Button-1>', open_selected)
+        # open_btn = Button(win, text="Öffnen", command=open_selected)
+        # open_btn.pack()
+
     def setup_ui(self):
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
@@ -95,15 +134,26 @@ class ZetaProposerGUI:
         settings_btn = ttk.Button(main_frame, text="Einstellungen", command=self.open_settings)
         settings_btn.grid(row=1, column=2, padx=(10, 0), pady=5)
         
+        # Project Name
+        ttk.Label(main_frame, text="Project Name:").grid(row=2, column=0, sticky="nw", pady=5)
+        self.project_name_var = tk.StringVar()
+        self.project_name_entry = ttk.Entry(main_frame, textvariable=self.project_name_var, width=50)
+        self.project_name_entry.grid(row=2, column=1, columnspan=2, sticky="ew", 
+                                   padx=(10, 0), pady=5)
+        # Add placeholder text
+        self.project_name_entry.insert(0, "Enter project name here...")
+        self.project_name_entry.bind('<FocusIn>', lambda e: self.on_project_name_focus_in())
+        self.project_name_entry.bind('<FocusOut>', lambda e: self.on_project_name_focus_out())
+        
         # Project Description
-        ttk.Label(main_frame, text="Project Description:").grid(row=2, column=0, sticky="nw", pady=5)
+        ttk.Label(main_frame, text="Project Description:").grid(row=3, column=0, sticky="nw", pady=5)
         self.description_text = scrolledtext.ScrolledText(main_frame, height=15, width=70)
-        self.description_text.grid(row=2, column=1, columnspan=2, sticky="nsew", 
+        self.description_text.grid(row=3, column=1, columnspan=2, sticky="nsew", 
                                  padx=(10, 0), pady=5)
         
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=3, pady=20)
+        button_frame.grid(row=4, column=0, columnspan=3, pady=20)
         
         # Generate button
         self.generate_btn = ttk.Button(button_frame, text="Generate Technical Concept", 
@@ -126,20 +176,32 @@ class ZetaProposerGUI:
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
-        status_bar.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        status_bar.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
         
         # Log window
         log_label = ttk.Label(main_frame, text="Program Log:")
-        log_label.grid(row=5, column=0, sticky=tk.W, pady=(10, 0))
+        log_label.grid(row=6, column=0, sticky=tk.W, pady=(10, 0))
         self.log_widget = scrolledtext.ScrolledText(main_frame, height=8, width=90, state="disabled")
-        self.log_widget.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        self.log_widget.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(0, 10))
         
         # Logfile view button
         view_log_btn = ttk.Button(main_frame, text="Letztes Log anzeigen", command=self.show_last_log)
-        view_log_btn.grid(row=7, column=0, sticky=tk.W, pady=(0, 10))
-        
+        view_log_btn.grid(row=8, column=0, sticky=tk.W, pady=(0, 10))
+        # Dokumentenübersicht-Button
+        view_docs_btn = ttk.Button(main_frame, text="Erstellte Dokumente anzeigen", command=self.show_documents_overview)
+        view_docs_btn.grid(row=8, column=1, sticky=tk.W, pady=(0, 10))
         # Set initial focus
-        self.description_text.focus()
+        self.project_name_entry.focus()
+        
+    def on_project_name_focus_in(self):
+        """Handle focus in event for project name entry"""
+        if self.project_name_var.get() == "Enter project name here...":
+            self.project_name_var.set("")
+            
+    def on_project_name_focus_out(self):
+        """Handle focus out event for project name entry"""
+        if not self.project_name_var.get().strip():
+            self.project_name_var.set("Enter project name here...")
         
     def setup_logger(self):
         """Set up a new logger and log file for each generation run"""
@@ -379,6 +441,14 @@ class ZetaProposerGUI:
         if hasattr(self, 'logger') and self.logger:
             self.logger.info("Starting concept generation from GUI")
         
+        # Get project name from input
+        project_name = self.project_name_var.get().strip()
+        if not project_name or project_name == "Enter project name here...":
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.warning("No project name provided")
+            messagebox.showwarning("Warning", "Please enter a project name.")
+            return
+        
         description = self.description_text.get("1.0", tk.END).strip()
         if not description:
             if hasattr(self, 'logger') and self.logger:
@@ -397,7 +467,7 @@ class ZetaProposerGUI:
         if hasattr(self, 'logger') and self.logger:
             self.logger.info("Starting generation thread")
         # Start generation in a separate thread
-        thread = threading.Thread(target=self._generate_concept_thread, args=(description,))
+        thread = threading.Thread(target=self._generate_concept_thread, args=(description, project_name))
         thread.daemon = True
         thread.start()
 
@@ -411,7 +481,7 @@ class ZetaProposerGUI:
         self.progress_var.set("Cancelled")
         self.status_var.set("Generation cancelled")
 
-    def _generate_concept_thread(self, description):
+    def _generate_concept_thread(self, description, project_name):
         """Generate concept in a separate thread"""
         if hasattr(self, 'logger') and self.logger:
             self.logger.info("Generation thread started")
@@ -500,55 +570,42 @@ class ZetaProposerGUI:
                     self.logger.info("Generation cancelled during diagram creation")
                 return
                 
-            # Update GUI
-            self.root.after(0, lambda: self.progress_var.set("Creating Word document..."))
-            self.root.after(0, lambda: self.status_var.set("Creating Word document..."))
-            
-            # Create Word document
+            # Use manually entered project name
             if hasattr(self, 'logger') and self.logger:
-                self.logger.info("Starting Word document creation")
-            docx_path = self.word_generator.create_document(concept, diagram_infos)
+                self.logger.info(f"Using manually entered project name: {project_name}")
+
+            # Word-Dokument erzeugen, Projektname und Datum als Parameter übergeben
+            docx_path = self.word_generator.create_document(concept, diagram_infos, project_name=project_name)
             if hasattr(self, 'logger') and self.logger:
                 self.logger.info("Word document created: %s", docx_path)
+            # Öffne das erzeugte docx automatisch
+            try:
+                import platform
+                import subprocess
+                if platform.system() == "Windows":
+                    os.startfile(docx_path)
+                elif platform.system() == "Darwin":
+                    subprocess.Popen(["open", docx_path])
+                else:
+                    subprocess.Popen(["xdg-open", docx_path])
+            except Exception as e:
+                if hasattr(self, 'logger') and self.logger:
+                    self.logger.error(f"Could not open docx automatically: {e}")
             
             if self.cancel_requested:
                 if hasattr(self, 'logger') and self.logger:
                     self.logger.info("Generation cancelled during Word document creation")
                 return
-                
-            # Update GUI
-            self.root.after(0, lambda: self.progress_var.set("Converting to PDF..."))
-            self.root.after(0, lambda: self.status_var.set("Converting to PDF..."))
             
-            # Convert to PDF
-            if hasattr(self, 'logger') and self.logger:
-                self.logger.info("Starting PDF conversion")
-            try:
-                pdf_path = self._convert_to_pdf(docx_path)
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.info("PDF conversion completed: %s", pdf_path)
-            except Exception as e:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.error("PDF conversion failed: %s", str(e))
-                pdf_path = None
-                
-            if self.cancel_requested:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.info("Generation cancelled during PDF conversion")
-                return
-                
             # Update GUI
             self.root.after(0, lambda: self.progress_var.set("Completed"))
             self.root.after(0, lambda: self.status_var.set("Generation completed successfully"))
             
-            # Show completion message
+            # Show completion message (nur docx)
             if hasattr(self, 'logger') and self.logger:
                 self.logger.info("Generation process completed successfully")
             message = f"Technical concept generated successfully!\n\nFiles created:\n• {docx_path}"
-            if pdf_path:
-                message += f"\n• {pdf_path}"
             message += f"\n\nLog file: {self.logfile_path}"
-            
             self.root.after(0, lambda: messagebox.showinfo("Success", message))
             
         except Exception as e:

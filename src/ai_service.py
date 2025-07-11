@@ -344,22 +344,33 @@ Please provide a detailed technical analysis and concept document as specified i
             description = section_data.get('description', '')
             self.logger.info("Section description length: %d characters", len(description))
             
-            max_words = self._extract_max_words_from_description(description)
-            if max_words:
-                self.logger.info("Extracted max words: %d", max_words)
-                min_words, max_words_with_tolerance = self._get_word_count_tolerance(max_words)
-                self.logger.info("Word count tolerance: min=%d, max=%d", min_words, max_words_with_tolerance)
+            # Check if we have JSON format with word_count configuration
+            if isinstance(section_data, dict) and "word_count" in section_data:
+                # Use JSON configuration directly
+                word_count_config = section_data.get("word_count", {})
+                min_words = word_count_config.get("min", 30)
+                max_words = word_count_config.get("max", 100)
                 
-                words = len(re.findall(r"\w+", content))
-                self.logger.info("Actual word count: %d", words)
-                
-                if words < min_words or words > max_words_with_tolerance:
-                    self.logger.warning("Section length out of bounds: %d words (min %d, max %d)", words, min_words, max_words_with_tolerance)
-                    return False, f"Section length out of bounds: {words} words (min {min_words}, max {max_words_with_tolerance})"
-                else:
-                    self.logger.info("Word count within acceptable range")
+                self.logger.info("Using JSON word count config: min=%d, max=%d", min_words, max_words)
             else:
-                self.logger.info("No word count requirement found in description")
+                # Fallback to old method
+                max_words = self._extract_max_words_from_description(description)
+                if max_words:
+                    min_words, max_words_with_tolerance = self._get_word_count_tolerance(max_words)
+                    self.logger.info("Word count tolerance: min=%d, max=%d", min_words, max_words_with_tolerance)
+                    max_words = max_words_with_tolerance
+                else:
+                    self.logger.info("No word count requirement found in description")
+                    min_words, max_words = 150, 325  # Default values
+            
+            words = len(re.findall(r"\w+", content))
+            self.logger.info("Actual word count: %d", words)
+            
+            if words < min_words or words > max_words:
+                self.logger.warning("Section length out of bounds: %d words (min %d, max %d)", words, min_words, max_words)
+                return False, f"Section length out of bounds: {words} words (min {min_words}, max {max_words})"
+            else:
+                self.logger.info("Word count within acceptable range")
             
             # DOT-Code-Block im Fließtext NICHT mehr prüfen
             self.logger.info("Checking content alignment")
@@ -418,7 +429,7 @@ Please provide a detailed technical analysis and concept document as specified i
         # Allow 30% tolerance above the limit (more generous)
         tolerance = int(max_words * 0.3)
         # Set minimum to 60% of max_words to ensure substantial content
-        min_words = max(150, int(max_words * 0.6))  # At least 150 words or 60% of max
+        min_words = int(max_words * 0.6)  # 60% of max_words as minimum
         max_words_with_tolerance = max_words + tolerance
         
         return min_words, max_words_with_tolerance
@@ -646,9 +657,9 @@ Please provide a detailed technical analysis and concept document as specified i
                 # New JSON format
                 definition = section_data["description"]
                 word_count_config = section_data.get("word_count", {})
-                max_words = word_count_config.get("target", 250)
-                min_words = word_count_config.get("min", 150)
-                max_words_with_tolerance = word_count_config.get("max", 325)
+                target_words = word_count_config.get("target", 70)
+                min_words = word_count_config.get("min", 30)
+                max_words = word_count_config.get("max", 100)
                 
                 # Check if diagram is enabled
                 diagram_config = section_data.get("diagram", {})
@@ -656,11 +667,11 @@ Please provide a detailed technical analysis and concept document as specified i
                 
                 self.logger.info("Section title: %s", title)
                 self.logger.info("Section definition length: %d", len(definition))
-                self.logger.info("Word count config: target=%d, min=%d, max=%d", max_words, min_words, max_words_with_tolerance)
+                self.logger.info("Word count config: target=%d, min=%d, max=%d", target_words, min_words, max_words)
                 self.logger.info("Diagram enabled: %s", diagram_enabled)
                 
-                word_count_instruction = f"\n\nWORD COUNT REQUIREMENTS:\n- Minimum: {min_words} words\n- Maximum: {max_words_with_tolerance} words\n- Target: {max_words} words\n\n"
-                self.logger.info("Word count requirements: min=%d, max=%d, target=%d", min_words, max_words_with_tolerance, max_words)
+                word_count_instruction = f"\n\nWORD COUNT REQUIREMENTS:\n- Minimum: {min_words} words\n- Maximum: {max_words} words\n- Target: {target_words} words\n\n"
+                self.logger.info("Word count requirements: min=%d, max=%d, target=%d", min_words, max_words, target_words)
             else:
                 # Old text format
                 definition = section_data["description"]
@@ -681,33 +692,30 @@ Please provide a detailed technical analysis and concept document as specified i
                 
             previous_errors = []
             section_accepted = False
-            
+            best_attempt = None  # (score, content, reason)
+            best_score = float('-inf')
+            best_content = None
+            best_reason = None
             # 1. Fließtext generieren (ohne Diagramm)
             self.logger.info("Starting text generation for section: %s", key)
             for attempt in range(10):
                 self.logger.info("Text generation attempt %d/10 for section: %s", attempt + 1, key)
-                
                 if cancel_callback and callable(cancel_callback) and cancel_callback():
                     self.logger.info("Generation cancelled during section %s, attempt %d", key, attempt + 1)
                     break
-                    
                 # Verwende nur die spezifische Beschreibung für diese Sektion
                 section_description = definition
                 self.logger.info("Using section-specific description for %s: %d characters", key, len(section_description))
-                
                 prompt = f"""You are an expert software architect and technical writer. Your task is to write ONLY the following section of a technical concept for a software project, in clear professional English. Do NOT add any other sections, summaries, introductions, conclusions, bullet points, lists, or headings.\n\nSection: {title}\n\nProject Description:\n{project_description}"""
                 if proposal_context and proposal_context.strip():
                     prompt += f"\n\nExisting Proposal Context:\n{proposal_context}"
                 # Verwende nur die spezifische Beschreibung für diese Sektion
                 prompt += f"\n\nInstructions:\n{section_description}{word_count_instruction}Output ONLY the content for this section. Do NOT include the section header or any other text. Do NOT include any diagram or code block."
-                
                 if attempt > 0 and previous_errors:
                     error_context = "\n".join([f"- {error}" for error in previous_errors])
                     prompt += f"\n\nIMPORTANT: The previous attempt failed due to these issues. Please ensure you address ALL of these problems:\n{error_context}\n\nMake sure to fix these specific issues in your response."
                     self.logger.info("Adding error context from previous attempts: %d errors", len(previous_errors))
-                
                 self.logger.debug("Text generation prompt length: %d", len(prompt))
-                
                 if provider == "openai":
                     response = self._call_openai(prompt)
                 elif provider == "ollama":
@@ -715,15 +723,17 @@ Please provide a detailed technical analysis and concept document as specified i
                 else:
                     self.logger.error("Unsupported AI provider: %s", provider)
                     raise ValueError(f"Unsupported AI provider: {provider}")
-                    
                 content = response.strip()
                 self.logger.info("Generated content length: %d characters", len(content))
-                
                 # Review prüft nicht mehr auf DOT-Code-Block im Fließtext
                 self.logger.info("Reviewing generated content")
                 score, reason = self._review_section(key, content, content, check_dot_block=False)
                 self.logger.info("Section %s review result: score=%s, reason=%s", key, score, reason)
-                
+                # Speichere bestes Ergebnis
+                if isinstance(score, (int, float)) and score > best_score:
+                    best_score = score
+                    best_content = content
+                    best_reason = reason
                 if score:
                     results[key] = {"text": content}
                     section_accepted = True
@@ -734,7 +744,10 @@ Please provide a detailed technical analysis and concept document as specified i
                     self.logger.warning("Section %s rejected (attempt %d): %s", key, attempt + 1, reason)
                     if attempt == 9:
                         self.logger.warning("Section %s using best effort after 10 failed attempts", key)
-                        results[key] = {"text": f"[BEST EFFORT]\n{content}\n\n[REVIEW] {reason}"}
+                        if best_content is not None:
+                            results[key] = {"text": f"[BEST EFFORT]\n{best_content}\n\n[REVIEW] {best_reason}"}
+                        else:
+                            results[key] = {"text": f"[BEST EFFORT]\n{content}\n\n[REVIEW] {reason}"}
             
             # 2. DOT-Code separat generieren, falls nötig und nur wenn Section akzeptiert und Diagramm aktiviert
             if section_accepted and diagram_enabled:
@@ -835,3 +848,20 @@ Output ONLY the DOT code block, nothing else. If you do not provide a valid DOT 
         
         self.logger.info("Section-by-section generation completed. Generated %d sections", len(results))
         return {"sections": results, "metadata": {"generated_by": "Zeta Proposer", "mode": "section_by_section_ai_reviewed_graphviz"}} 
+
+    def generate_project_name(self, project_description: str, provider: str = "openai") -> str:
+        """Generate a project name from the project description using AI."""
+        prompt = (
+            "Generate a short, clear, and professional project name (max 7 words, no quotes, no punctuation at the end) "
+            "for the following software project. Only output the name, nothing else.\n\n"
+            f"Project Description:\n{project_description}"
+        )
+        self.logger.info("Generating project name with provider: %s", provider)
+        if provider == "openai":
+            name = self._call_openai(prompt)
+        elif provider == "ollama":
+            name = self._call_ollama(prompt)
+        else:
+            raise ValueError(f"Unsupported AI provider: {provider}")
+        # Nur die erste Zeile nehmen und ggf. trimmen
+        return name.strip().split('\n')[0].strip('"') 

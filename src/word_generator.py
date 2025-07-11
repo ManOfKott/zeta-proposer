@@ -8,6 +8,7 @@ import os
 import re
 import logging
 from datetime import datetime
+from lxml import etree
 
 class WordDocumentGenerator:
     def __init__(self):
@@ -89,17 +90,22 @@ class WordDocumentGenerator:
 
     def _find_diagram_info(self, diagram_infos, section_key):
         """Find diagram info dict for a given section key."""
-        self.logger.debug("Finding diagram info for section: %s", section_key)
-        self.logger.debug("Diagram infos count: %d", len(diagram_infos) if diagram_infos else 0)
+        self.logger.info("Finding diagram info for section: %s", section_key)
+        self.logger.info("Diagram infos count: %d", len(diagram_infos) if diagram_infos else 0)
         
         if not diagram_infos:
-            self.logger.debug("No diagram infos provided")
+            self.logger.info("No diagram infos provided")
             return None
+            
+        self.logger.info("Available diagram infos:")
+        for i, info in enumerate(diagram_infos):
+            self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
+            
         for info in diagram_infos:
             if info.get('section') == section_key:
-                self.logger.debug("Found diagram info for section: %s", section_key)
+                self.logger.info("Found diagram info for section: %s", section_key)
                 return info
-        self.logger.debug("No diagram info found for section: %s", section_key)
+        self.logger.info("No diagram info found for section: %s", section_key)
         return None
 
     def _insert_single_section(self, doc, insert_after, key, title, ai_sections, diagram_infos, heading_style, normal_style):
@@ -139,63 +145,67 @@ class WordDocumentGenerator:
             
         diagram_info = self._find_diagram_info(diagram_infos, key)
         
+        # Debug: Log what we found
+        if diagram_info:
+            self.logger.info("Found diagram info for section %s: %s", key, diagram_info.get('png_path', 'N/A'))
+        else:
+            self.logger.info("No diagram info found for section %s", key)
+            # Debug: Log available diagram_infos
+            if diagram_infos:
+                self.logger.info("Available diagram_infos:")
+                for i, info in enumerate(diagram_infos):
+                    self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
+            else:
+                self.logger.info("No diagram_infos provided to _insert_single_section")
+        
         # Paragraph case
         if insert_after is not None and hasattr(insert_after, 'text') and hasattr(insert_after, '_element'):
             self.logger.info("Inserting content in paragraph/cell for section: %s", key)
+            # Ersetze nur den Text des Platzhalter-Absatzes
             insert_after.text = content
             self.logger.info("Replaced placeholder for section %s with content in paragraph/cell", key)
-            
             if diagram_info:
                 try:
-                    parent = insert_after._parent
-                    if hasattr(parent, 'paragraphs'):
-                        idx = None
-                        for i, p in enumerate(parent.paragraphs):
-                            if p == insert_after:
-                                idx = i
-                                break
-                        if idx is not None:
-                            img_para = parent.add_paragraph()
-                            run = img_para.add_run()
-                            img_path = os.path.abspath(diagram_info['png_path'])
-                            self.logger.info("Trying to insert image for section %s: %s", key, img_path)
-                            
-                            if not os.path.exists(img_path):
-                                self.logger.error("File does not exist: %s", img_path)
-                                parent.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
-                                return
-                                
-                            run.add_picture(img_path, width=Inches(5.5))
-                            caption_para = parent.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
-                            parent.paragraphs.insert(idx + 1, img_para)
-                            parent.paragraphs.insert(idx + 2, caption_para)
-                            self.logger.info("Inserted diagram and caption for section %s after paragraph (image: %s)", key, img_path)
+                    from docx.oxml import OxmlElement
+                    from docx.oxml.ns import qn
+                    img_para = insert_after._parent.add_paragraph()
+                    run = img_para.add_run()
+                    img_path = os.path.abspath(diagram_info['png_path'])
+                    self.logger.info("Trying to insert image for section %s: %s", key, img_path)
+                    if not os.path.exists(img_path):
+                        self.logger.error("File does not exist: %s", img_path)
+                        insert_after._parent.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
+                        return
+                    run.add_picture(img_path, width=Inches(5.5))
+                    caption_para = insert_after._parent.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
+                    # Diagramm-Absatz direkt nach dem aktuellen Absatz einfügen (XML-Trick)
+                    p = insert_after._element
+                    new_p = img_para._element
+                    p.addnext(new_p)
+                    new_caption = caption_para._element
+                    new_p.addnext(new_caption)
+                    self.logger.info("Inserted diagram and caption for section %s after paragraph (image: %s)", key, img_path)
                 except Exception as e:
-                    parent.add_paragraph(f"Error adding diagram: {str(e)}", style=normal_style)
+                    insert_after._parent.add_paragraph(f"Error adding diagram: {str(e)}", style=normal_style)
                     self.logger.error("Error adding diagram for section %s (image: %s): %s", key, img_path, str(e), exc_info=True)
             else:
                 self.logger.warning("No diagram found for section %s, no image inserted", key)
-                parent = insert_after._parent
-                parent.add_paragraph(f"[No diagram available for this section]", style=normal_style)
-                
+                insert_after._parent.add_paragraph(f"[No diagram available for this section]", style=normal_style)
+            return
         # Table cell case
         elif hasattr(insert_after, 'text') and hasattr(insert_after, 'add_paragraph'):
             self.logger.info("Inserting content in table cell for section: %s", key)
-            insert_after.text = content
-            self.logger.info("Replaced placeholder for section %s with content in table cell", key)
-            
+            insert_after.text = content  # Platzhaltertext ersetzen
             if diagram_info:
                 try:
                     img_para = insert_after.add_paragraph()
                     run = img_para.add_run()
                     img_path = os.path.abspath(diagram_info['png_path'])
                     self.logger.info("Trying to insert image for section %s: %s", key, img_path)
-                    
                     if not os.path.exists(img_path):
                         self.logger.error("File does not exist: %s", img_path)
                         insert_after.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
                         return
-                        
                     run.add_picture(img_path, width=Inches(5.5))
                     caption_para = insert_after.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
                     self.logger.info("Inserted diagram and caption for section %s in table cell (image: %s)", key, img_path)
@@ -205,6 +215,7 @@ class WordDocumentGenerator:
             else:
                 self.logger.warning("No diagram found for section %s, no image inserted (table cell)", key)
                 insert_after.add_paragraph(f"[No diagram available for this section]", style=normal_style)
+            return
         else:
             # Add content only (no heading)
             self.logger.info("Adding content only for section: %s", key)
@@ -233,11 +244,44 @@ class WordDocumentGenerator:
                 self.logger.warning("No diagram found for section %s, no image inserted (no template mode)", key)
                 doc.add_paragraph(f"[No diagram available for this section]", style=normal_style)
     
-    def create_document(self, concept: Dict[str, Any], diagram_infos: Optional[list] = None) -> str:
+    def _escape_xml_text(self, text: str) -> str:
+        """Escaped XML-spezielle Zeichen im Text."""
+        if not text:
+            return ""
+        # Ersetze XML-spezielle Zeichen
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        text = text.replace('"', '&quot;')
+        text = text.replace("'", '&apos;')
+        return text
+
+    def _replace_placeholders_in_xml(self, doc, replacements: dict):
+        """Ersetzt Platzhalter im gesamten XML, inkl. Shapes/Textboxen/Kopfzeilen."""
+        xml = doc.part.element.xml
+        for placeholder, value in replacements.items():
+            # Escape XML-spezielle Zeichen im Wert
+            escaped_value = self._escape_xml_text(value)
+            xml = xml.replace(placeholder, escaped_value)
+        # Setze das XML zurück (dirty hack, aber funktioniert für Platzhalter)
+        new_element = etree.fromstring(xml.encode('utf-8'))
+        doc.part._element = new_element
+
+    def create_document(self, concept: Dict[str, Any], diagram_infos: Optional[list] = None, project_name: Optional[str] = None) -> str:
         """Create Word document from technical concept, using template if set. diagram_infos is a list of dicts with section, path, caption."""
+        if not isinstance(project_name, str) or not project_name:
+            project_name = "Project"
         self.logger.info("Starting document creation")
         self.logger.info("Concept sections count: %d", len(concept.get('sections', {})))
         self.logger.info("Diagram infos count: %d", len(diagram_infos) if diagram_infos else 0)
+        
+        # Debug: Log diagram_infos content
+        if diagram_infos:
+            self.logger.info("Diagram infos content:")
+            for i, info in enumerate(diagram_infos):
+                self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
+        else:
+            self.logger.info("No diagram_infos provided")
         
         section_placeholders = [
             ("system_scope", "System scope and boundaries"),
@@ -269,6 +313,39 @@ class WordDocumentGenerator:
                     preview = str(v)[:100]
                 self.logger.info("  %s: %s", k, preview)
                 
+            # --- Neue Platzhalter ersetzen: project_name und date ---
+            from datetime import datetime
+            # Project Name extrahieren (erste Zeile der Beschreibung oder Fallback)
+            if project_name is None:
+                project_name = "Project"
+                ai_sections = concept.get('sections', {})
+                if 'project_overview' in ai_sections and ai_sections['project_overview']:
+                    overview = ai_sections['project_overview']
+                    if isinstance(overview, dict):
+                        overview_text = overview.get('text', '')
+                    else:
+                        overview_text = overview
+                    lines = overview_text.strip().split('\n')
+                    for line in lines:
+                        if line.strip() and not line.startswith('-') and len(line.strip()) < 100:
+                            project_name = line.strip()
+                            break
+            today_str = datetime.now().strftime('%Y-%m-%d')
+            # Ersetze in allen Absätzen
+            for para in doc.paragraphs:
+                if '{{project_name}}' in para.text:
+                    para.text = para.text.replace('{{project_name}}', project_name)
+                if '{{date}}' in para.text:
+                    para.text = para.text.replace('{{date}}', today_str)
+            # Ersetze in allen Tabellenzellen
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if '{{project_name}}' in cell.text:
+                            cell.text = cell.text.replace('{{project_name}}', project_name)
+                        if '{{date}}' in cell.text:
+                            cell.text = cell.text.replace('{{date}}', today_str)
+
             # Check if template has any placeholders
             template_has_placeholders = False
             placeholder_found = None
@@ -371,10 +448,18 @@ class WordDocumentGenerator:
                 
             self._add_metadata(doc, concept)
             
+        # Ersetze Platzhalter im gesamten XML (inkl. Shapes/Textboxen)
+        safe_project_name = str(project_name) if project_name else "Project"
+        self._replace_placeholders_in_xml(doc, {
+            '{{project_name}}': safe_project_name,
+            '{{date}}': today_str
+        })
+
         docx_output_dir = Path(self.output_dir) / "docx"
         docx_output_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"technical_concept_{timestamp}.docx"
+        safe_project_name = re.sub(r'[^a-zA-Z0-9_-]', '_', project_name)[:40]
+        filename = f"{safe_project_name}_{today_str}.docx"
         output_path = docx_output_dir / filename
         
         self.logger.info("Saving document to: %s", output_path)
@@ -616,11 +701,11 @@ class WordDocumentGenerator:
         if not text:
             return text
         self.logger.info(f"[DOT-REMOVE] Vorher: {text[:200]}")
-        # Entfernt alle ```dot ... ```-Blöcke, auch mit optionalen Whitespaces/Zeilenumbrüchen
-        text = re.sub(r'```\s*dot[\s\S]+?```', '', text, flags=re.IGNORECASE)
-        # Entfernt Zeilen, die mit 'digraph' oder 'graph' beginnen (zur Sicherheit)
+        # Entfernt alle ```dot ... ```-Blöcke, ```graph ... ```-Blöcke und ``` ... ```-Blöcke mit dot/graph
+        text = re.sub(r'```\s*(dot|graph)?[\s\S]+?```', '', text, flags=re.IGNORECASE)
+        # Entfernt Zeilen, die mit 'digraph', 'graph', '{', '}' beginnen (auch mit Whitespaces)
         lines = text.splitlines()
-        cleaned_lines = [line for line in lines if not line.strip().lower().startswith(('digraph', 'graph'))]
+        cleaned_lines = [line for line in lines if not line.strip().lower().startswith(('digraph', 'graph', '{', '}'))]
         result = '\n'.join(cleaned_lines)
         self.logger.info(f"[DOT-REMOVE] Nachher: {result[:200]}")
         return result 
