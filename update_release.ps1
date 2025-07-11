@@ -8,6 +8,20 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "Zeta Proposer - Release Update Script" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
+Write-Host "`n0. Cleaning up old ZIP files..." -ForegroundColor Yellow
+$oldZips = Get-ChildItem -Path "." -Filter "Zeta_Proposer_v*.zip"
+if ($oldZips) {
+    Write-Host "Found $($oldZips.Count) old ZIP file(s):" -ForegroundColor Cyan
+    foreach ($zip in $oldZips) {
+        Write-Host "  - $($zip.Name)" -ForegroundColor White
+        Remove-Item $zip.FullName -Force
+    }
+    Write-Host "Old ZIP files deleted." -ForegroundColor Green
+}
+else {
+    Write-Host "No old ZIP files found." -ForegroundColor Cyan
+}
+
 if (-not $SkipBuild) {
     Write-Host "`n1. Building new executable..." -ForegroundColor Yellow
     & venv\Scripts\Activate.ps1
@@ -28,9 +42,6 @@ Copy-Item "logging_config.json" "release\" -Force
 
 Write-Host "`n4. Creating new ZIP archive..." -ForegroundColor Yellow
 $zipName = "Zeta_Proposer_v$Version.zip"
-if (Test-Path $zipName) {
-    Remove-Item $zipName -Force
-}
 Compress-Archive -Path "release\*" -DestinationPath $zipName -Force
 
 Write-Host "`n========================================" -ForegroundColor Green

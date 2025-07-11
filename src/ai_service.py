@@ -35,7 +35,7 @@ class AIServiceManager:
             self.logger.error("OpenAI client could not be initialized")
             raise Exception("OpenAI client could not be initialized. Check your API key and installation.")
         
-        model = os.getenv("OPENAI_MODEL", "gpt-4")
+        model = os.getenv("OPENAI_MODEL", "gpt-4o")
         self.logger.info("Using OpenAI model: %s", model)
         
         try:
@@ -105,7 +105,7 @@ CRITICAL REQUIREMENTS:
 - Use the exact section headers and numbering as shown below.
 - Write in continuous text (no bullet points unless explicitly requested).
 - Do NOT use markdown formatting.
-- For section 1 and section 2, you MUST provide a clear, concise diagram description at the end of the section, directly related to the section content. The diagram description must be suitable for automatic diagram generation (e.g., context diagram for section 1, architecture diagram for section 2).
+- Do NOT include any diagram code, DOT code, or visual elements.
 - Repeat: Do NOT add any other sections, such as project costs, payment plan, summary, conclusion, or anything else. Only the 7 sections below are allowed. Use the exact headers and numbering. No summaries, no introductions, no additional explanations.'''
     
     def generate_technical_concept(self, project_description: str, provider: str = "openai", proposal_context: str = "") -> Dict[str, Any]:
@@ -315,17 +315,7 @@ Please provide a detailed technical analysis and concept document as specified i
             self.logger.info(f"Fallback extraction failed for {key}: {str(e)}")
             return ""
     
-    def _is_valid_dot_code(self, dot_code: str) -> bool:
-        """Prüft, ob der DOT-Code syntaktisch korrekt ist."""
-        try:
-            from graphviz import Source
-            src = Source(dot_code)
-            src.pipe(format='png')  # Versucht, den Code zu rendern (ohne zu speichern)
-            return True
-        except Exception as e:
-            if hasattr(self, 'logger') and self.logger:
-                self.logger.warning(f"[DOT-REVIEW] DOT-Code Syntaxfehler: {e}")
-            return False
+
 
     def _review_section(self, key, content, original_content=None, check_dot_block=True):
         """Review a section based on dynamic descriptions from the file."""
@@ -661,14 +651,9 @@ Please provide a detailed technical analysis and concept document as specified i
                 min_words = word_count_config.get("min", 30)
                 max_words = word_count_config.get("max", 100)
                 
-                # Check if diagram is enabled
-                diagram_config = section_data.get("diagram", {})
-                diagram_enabled = diagram_config.get("enabled", False)
-                
                 self.logger.info("Section title: %s", title)
                 self.logger.info("Section definition length: %d", len(definition))
                 self.logger.info("Word count config: target=%d, min=%d, max=%d", target_words, min_words, max_words)
-                self.logger.info("Diagram enabled: %s", diagram_enabled)
                 
                 word_count_instruction = f"\n\nWORD COUNT REQUIREMENTS:\n- Minimum: {min_words} words\n- Maximum: {max_words} words\n- Target: {target_words} words\n\n"
                 self.logger.info("Word count requirements: min=%d, max=%d, target=%d", min_words, max_words, target_words)
@@ -687,8 +672,7 @@ Please provide a detailed technical analysis and concept document as specified i
                     word_count_instruction = "\n\nWORD COUNT REQUIREMENTS:\n- Minimum: 150 words\n- Maximum: 400 words\n- Target: 250 words\n\n"
                     self.logger.info("Using default word count requirements")
                 
-                # For old format, only system_scope and architecture_tech_stack get diagrams
-                diagram_enabled = key in ["system_scope", "architecture_tech_stack"]
+
                 
             previous_errors = []
             section_accepted = False
@@ -749,102 +733,7 @@ Please provide a detailed technical analysis and concept document as specified i
                         else:
                             results[key] = {"text": f"[BEST EFFORT]\n{content}\n\n[REVIEW] {reason}"}
             
-            # 2. DOT-Code separat generieren, falls nötig und nur wenn Section akzeptiert und Diagramm aktiviert
-            if section_accepted and diagram_enabled:
-                self.logger.info("Generating DOT code for section: %s", key)
-                dot_retry_count = 0
-                dot_code = ""
-                dot_errors = []
-                
-                for dot_attempt in range(4):
-                    self.logger.info("DOT generation attempt %d/4 for section: %s", dot_attempt + 1, key)
-                    
-                    if cancel_callback and callable(cancel_callback) and cancel_callback():
-                        self.logger.info("Generation cancelled during DOT for section %s, attempt %d", key, dot_attempt + 1)
-                        break
-                        
-                    # Build diagram prompt based on JSON configuration
-                    if isinstance(section_data, dict) and "diagram" in section_data:
-                        diagram_config = section_data["diagram"]
-                        diagram_type = diagram_config.get("type", "general")
-                        diagram_description = diagram_config.get("description", "")
-                        diagram_requirements = diagram_config.get("requirements", [])
-                        
-                        requirements_text = "\n".join([f"- {req}" for req in diagram_requirements])
-                        
-                        dot_prompt = f"""You are an expert in Graphviz diagrams. Based on the following section content and requirements, generate ONLY a valid Graphviz DOT code block (```dot ... ```) that visualizes the required aspects.
-
-Diagram Type: {diagram_type}
-Diagram Description: {diagram_description}
-
-Diagram Requirements:
-{requirements_text}
-
-Section Content:
-{results[key]['text']}
-
-Output ONLY the DOT code block, nothing else. If you do not provide a valid DOT code block, your answer will be rejected."""
-                    else:
-                        # Fallback for old format
-                        dot_prompt = f"""You are an expert in Graphviz diagrams. Based on the following section content and requirements, generate ONLY a valid Graphviz DOT code block (```dot ... ```) that visualizes the required aspects.\n\nSection Description:\n{section_description}\n\nSection Content:\n{results[key]['text']}\n\nOutput ONLY the DOT code block, nothing else. If you do not provide a valid DOT code block, your answer will be rejected."""
-                    
-                    if dot_errors:
-                        dot_prompt += f"\n\nPrevious errors:\n" + "\n".join(dot_errors)
-                        self.logger.info("Adding DOT error context: %d errors", len(dot_errors))
-                    
-                    self.logger.debug("DOT generation prompt length: %d", len(dot_prompt))
-                    
-                    if provider == "openai":
-                        dot_response = self._call_openai(dot_prompt)
-                    elif provider == "ollama":
-                        dot_response = self._call_ollama(dot_prompt)
-                    else:
-                        self.logger.error("Unsupported AI provider for DOT generation: %s", provider)
-                        raise ValueError(f"Unsupported AI provider: {provider}")
-                    
-                    self.logger.info("DOT response length: %d characters", len(dot_response))
-                    
-                    m = re.search(r'```dot\s*([\s\S]+?)```', dot_response, re.IGNORECASE)
-                    if m and self._is_valid_dot_code(m.group(1).strip()):
-                        dot_code = m.group(1).strip()
-                        results[key]["dot_code"] = dot_code
-                        self.logger.info("DOT code generated successfully for section: %s", key)
-                        # --- NEU: Sofortiges technisches Review und PNG-Erstellung ---
-                        # Syntax-Check ist schon durch _is_valid_dot_code erfolgt
-                        try:
-                            from src.graphviz_diagram import GraphvizDiagramGenerator
-                            diagram_gen = GraphvizDiagramGenerator()
-                            png_path = diagram_gen._dot_to_graphviz_png(dot_code, key)
-                            if png_path:
-                                results[key]["png_path"] = png_path
-                                self.logger.info(f"PNG diagram generated for section {key}: {png_path}")
-                            else:
-                                self.logger.warning(f"PNG diagram could not be generated for section {key}, using fallback.")
-                                fallback_dot = "digraph Fallback {\n  node [shape=box];\n  FallbackNode [label=\"Diagramm konnte nicht erzeugt werden\"];\n}"
-                                results[key]["dot_code"] = fallback_dot
-                                results[key]["png_path"] = diagram_gen._dot_to_graphviz_png(fallback_dot, key)
-                        except Exception as e:
-                            self.logger.error(f"Error generating PNG for section {key}: {e}")
-                        # --- ENDE NEU ---
-                        break
-                    else:
-                        dot_retry_count += 1
-                        dot_errors.append("Invalid or missing DOT code block.")
-                        self.logger.warning("DOT generation failed for section %s (attempt %d)", key, dot_attempt + 1)
-                        
-                        if dot_retry_count >= 3:
-                            fallback_dot = "digraph Fallback {\n  node [shape=box];\n  FallbackNode [label=\"Diagramm konnte nicht erzeugt werden\"];\n}"
-                            results[key]["dot_code"] = fallback_dot
-                            try:
-                                from src.graphviz_diagram import GraphvizDiagramGenerator
-                                diagram_gen = GraphvizDiagramGenerator()
-                                results[key]["png_path"] = diagram_gen._dot_to_graphviz_png(fallback_dot, key)
-                                self.logger.warning(f"Section {key} using fallback DOT and PNG after 3 failed attempts")
-                            except Exception as e:
-                                self.logger.error(f"Error generating fallback PNG for section {key}: {e}")
-                            break
-            else:
-                self.logger.info("No DOT code generation needed for section: %s", key)
+            
         
         self.logger.info("Section-by-section generation completed. Generated %d sections", len(results))
         return {"sections": results, "metadata": {"generated_by": "Zeta Proposer", "mode": "section_by_section_ai_reviewed_graphviz"}} 

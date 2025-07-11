@@ -4,6 +4,18 @@ echo Zeta Proposer - Release Update Script
 echo ========================================
 
 echo.
+echo 0. Cleaning up old ZIP files...
+for %%f in (Zeta_Proposer_v*.zip) do (
+    echo   - Deleting %%f
+    del "%%f"
+)
+if not exist "Zeta_Proposer_v*.zip" (
+    echo No old ZIP files found.
+) else (
+    echo Old ZIP files deleted.
+)
+
+echo.
 echo 1. Building new executable...
 call venv\Scripts\activate
 pyinstaller zeta_proposer.spec

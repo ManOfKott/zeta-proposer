@@ -8,11 +8,12 @@ import os
 import re
 import logging
 from datetime import datetime
-from lxml import etree
+import tkinter.messagebox as messagebox
+
 
 class WordDocumentGenerator:
-    def __init__(self):
-        self.output_dir = Path("output")
+    def __init__(self, output_directory="output"):
+        self.output_dir = Path(output_directory)
         self.output_dir.mkdir(exist_ok=True)
         self.template_path = None  # Path to selected template
         self.logger = logging.getLogger(__name__)
@@ -88,28 +89,8 @@ class WordDocumentGenerator:
         self.logger.debug("No heading removed, content unchanged")
         return content
 
-    def _find_diagram_info(self, diagram_infos, section_key):
-        """Find diagram info dict for a given section key."""
-        self.logger.info("Finding diagram info for section: %s", section_key)
-        self.logger.info("Diagram infos count: %d", len(diagram_infos) if diagram_infos else 0)
-        
-        if not diagram_infos:
-            self.logger.info("No diagram infos provided")
-            return None
-            
-        self.logger.info("Available diagram infos:")
-        for i, info in enumerate(diagram_infos):
-            self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
-            
-        for info in diagram_infos:
-            if info.get('section') == section_key:
-                self.logger.info("Found diagram info for section: %s", section_key)
-                return info
-        self.logger.info("No diagram info found for section: %s", section_key)
-        return None
-
-    def _insert_single_section(self, doc, insert_after, key, title, ai_sections, diagram_infos, heading_style, normal_style):
-        """Replace the placeholder in the paragraph/cell directly with content and diagram, keeping document order stable."""
+    def _insert_single_section(self, doc, insert_after, key, title, ai_sections, heading_style, normal_style):
+        """Replace the placeholder in the paragraph/cell directly with content, keeping document order stable."""
         self.logger.info("Inserting single section: %s", key)
         self.logger.info("Section title: %s", title)
         
@@ -143,112 +124,28 @@ class WordDocumentGenerator:
             content = f"(No information available for {title})"
             self.logger.info("Section %s: using fallback content", key)
             
-        diagram_info = self._find_diagram_info(diagram_infos, key)
-        
-        # Debug: Log what we found
-        if diagram_info:
-            self.logger.info("Found diagram info for section %s: %s", key, diagram_info.get('png_path', 'N/A'))
-        else:
-            self.logger.info("No diagram info found for section %s", key)
-            # Debug: Log available diagram_infos
-            if diagram_infos:
-                self.logger.info("Available diagram_infos:")
-                for i, info in enumerate(diagram_infos):
-                    self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
-            else:
-                self.logger.info("No diagram_infos provided to _insert_single_section")
-        
         # Paragraph case
         if insert_after is not None and hasattr(insert_after, 'text') and hasattr(insert_after, '_element'):
             self.logger.info("Inserting content in paragraph/cell for section: %s", key)
             # Ersetze nur den Text des Platzhalter-Absatzes
             insert_after.text = content
             self.logger.info("Replaced placeholder for section %s with content in paragraph/cell", key)
-            if diagram_info:
-                try:
-                    from docx.oxml import OxmlElement
-                    from docx.oxml.ns import qn
-                    img_para = insert_after._parent.add_paragraph()
-                    run = img_para.add_run()
-                    img_path = os.path.abspath(diagram_info['png_path'])
-                    self.logger.info("Trying to insert image for section %s: %s", key, img_path)
-                    if not os.path.exists(img_path):
-                        self.logger.error("File does not exist: %s", img_path)
-                        insert_after._parent.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
-                        return
-                    run.add_picture(img_path, width=Inches(5.5))
-                    caption_para = insert_after._parent.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
-                    # Diagramm-Absatz direkt nach dem aktuellen Absatz einfügen (XML-Trick)
-                    p = insert_after._element
-                    new_p = img_para._element
-                    p.addnext(new_p)
-                    new_caption = caption_para._element
-                    new_p.addnext(new_caption)
-                    self.logger.info("Inserted diagram and caption for section %s after paragraph (image: %s)", key, img_path)
-                except Exception as e:
-                    insert_after._parent.add_paragraph(f"Error adding diagram: {str(e)}", style=normal_style)
-                    self.logger.error("Error adding diagram for section %s (image: %s): %s", key, img_path, str(e), exc_info=True)
-            else:
-                self.logger.warning("No diagram found for section %s, no image inserted", key)
-                insert_after._parent.add_paragraph(f"[No diagram available for this section]", style=normal_style)
             return
         # Table cell case
         elif hasattr(insert_after, 'text') and hasattr(insert_after, 'add_paragraph'):
             self.logger.info("Inserting content in table cell for section: %s", key)
             insert_after.text = content  # Platzhaltertext ersetzen
-            if diagram_info:
-                try:
-                    img_para = insert_after.add_paragraph()
-                    run = img_para.add_run()
-                    img_path = os.path.abspath(diagram_info['png_path'])
-                    self.logger.info("Trying to insert image for section %s: %s", key, img_path)
-                    if not os.path.exists(img_path):
-                        self.logger.error("File does not exist: %s", img_path)
-                        insert_after.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
-                        return
-                    run.add_picture(img_path, width=Inches(5.5))
-                    caption_para = insert_after.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
-                    self.logger.info("Inserted diagram and caption for section %s in table cell (image: %s)", key, img_path)
-                except Exception as e:
-                    insert_after.add_paragraph(f"Error adding diagram: {str(e)}", style=normal_style)
-                    self.logger.error("Error adding diagram for section %s in table cell (image: %s): %s", key, img_path, str(e), exc_info=True)
-            else:
-                self.logger.warning("No diagram found for section %s, no image inserted (table cell)", key)
-                insert_after.add_paragraph(f"[No diagram available for this section]", style=normal_style)
+            self.logger.info("Replaced placeholder for section %s with content in table cell", key)
             return
         else:
-            # Add content only (no heading)
-            self.logger.info("Adding content only for section: %s", key)
-            content_para = doc.add_paragraph(content, style=normal_style)
-            self.logger.info("Added content for section %s: %d chars", key, len(content))
-            
-            if diagram_info:
-                try:
-                    img_para = doc.add_paragraph()
-                    run = img_para.add_run()
-                    img_path = os.path.abspath(diagram_info['png_path'])
-                    self.logger.info("Trying to insert image for section %s: %s", key, img_path)
-                    
-                    if not os.path.exists(img_path):
-                        self.logger.error("File does not exist: %s", img_path)
-                        doc.add_paragraph(f"Diagram file not found: {Path(diagram_info['png_path']).name}", style=normal_style)
-                        return
-                        
-                    run.add_picture(img_path, width=Inches(5.5))
-                    caption_para = doc.add_paragraph("Diagram generated from Graphviz DOT code.", style=normal_style)
-                    self.logger.info("Inserted diagram and caption for section %s (no template mode, image: %s)", key, img_path)
-                except Exception as e:
-                    doc.add_paragraph(f"Error adding diagram: {str(e)}", style=normal_style)
-                    self.logger.error("Error adding diagram for section %s (no template mode, image: %s): %s", key, img_path, str(e), exc_info=True)
-            else:
-                self.logger.warning("No diagram found for section %s, no image inserted (no template mode)", key)
-                doc.add_paragraph(f"[No diagram available for this section]", style=normal_style)
-    
+            self.logger.warning("Unknown insert_after type for section %s: %s", key, type(insert_after))
+            return
+
     def _escape_xml_text(self, text: str) -> str:
-        """Escaped XML-spezielle Zeichen im Text."""
+        """Escape special characters for XML"""
         if not text:
-            return ""
-        # Ersetze XML-spezielle Zeichen
+            return text
+        # Replace special characters that can cause XML issues
         text = text.replace('&', '&amp;')
         text = text.replace('<', '&lt;')
         text = text.replace('>', '&gt;')
@@ -257,455 +154,431 @@ class WordDocumentGenerator:
         return text
 
     def _replace_placeholders_in_xml(self, doc, replacements: dict):
-        """Ersetzt Platzhalter im gesamten XML, inkl. Shapes/Textboxen/Kopfzeilen."""
-        xml = doc.part.element.xml
-        for placeholder, value in replacements.items():
-            # Escape XML-spezielle Zeichen im Wert
-            escaped_value = self._escape_xml_text(value)
-            xml = xml.replace(placeholder, escaped_value)
-        # Setze das XML zurück (dirty hack, aber funktioniert für Platzhalter)
-        new_element = etree.fromstring(xml.encode('utf-8'))
-        doc.part._element = new_element
+        """Replace placeholders in XML elements (shapes, textboxes, etc.)"""
+        self.logger.info("Replacing placeholders in XML elements")
+        for element in doc.element.xpath('//w:t'):
+            if element.text:
+                for placeholder, replacement in replacements.items():
+                    if placeholder in element.text:
+                        # Kein XML-Escaping mehr, sondern roher Text
+                        element.text = element.text.replace(placeholder, replacement)
+                        self.logger.info("Replaced %s in XML element", placeholder)
 
-    def create_document(self, concept: Dict[str, Any], diagram_infos: Optional[list] = None, project_name: Optional[str] = None) -> str:
-        """Create Word document from technical concept, using template if set. diagram_infos is a list of dicts with section, path, caption."""
-        if not isinstance(project_name, str) or not project_name:
-            project_name = "Project"
+    def create_document(self, concept: Dict[str, Any], project_name: Optional[str] = None, initiator: Optional[str] = None, upwork_link: Optional[str] = None, description: Optional[str] = None) -> str:
+        """Create a Word document from the concept data using template replacement. Speichert alles im Projektordner mit Versionierung."""
         self.logger.info("Starting document creation")
-        self.logger.info("Concept sections count: %d", len(concept.get('sections', {})))
-        self.logger.info("Diagram infos count: %d", len(diagram_infos) if diagram_infos else 0)
         
-        # Debug: Log diagram_infos content
-        if diagram_infos:
-            self.logger.info("Diagram infos content:")
-            for i, info in enumerate(diagram_infos):
-                self.logger.info("  [%d] section: '%s', png_path: '%s'", i, info.get('section', 'N/A'), info.get('png_path', 'N/A'))
-        else:
-            self.logger.info("No diagram_infos provided")
-        
-        section_placeholders = [
-            ("system_scope", "System scope and boundaries"),
-            ("architecture_tech_stack", "Architecture and technology stack"),
-            ("external_interfaces", "System-external interfaces and integrations"),
-            ("ci_cd", "CI/CD Pipelines"),
-            ("testing_concept", "Specific testing concept"),
-            ("deployment_operation", "Deployment and Operation environment"),
-            ("ux_ui", "UX/UI design and prototyping")
-        ]
-        
-        self.logger.info("Template path: %s", self.template_path)
-        self.logger.info("Template exists: %s", os.path.exists(self.template_path) if self.template_path else False)
-        
-        if self.template_path and os.path.exists(self.template_path):
-            self.logger.info("Using existing template: %s", self.template_path)
-            doc = Document(self.template_path)
-            heading_style = 'Heading 1'
-            normal_style = 'Normal'
-            ai_sections = concept.get('sections', {})
-            
-            self.logger.info("Extracted ai_sections:")
-            for k, v in ai_sections.items():
-                if isinstance(v, str):
-                    preview = v[:100]
-                elif isinstance(v, dict) and 'text' in v and isinstance(v['text'], str):
-                    preview = v['text'][:100]
-                else:
-                    preview = str(v)[:100]
-                self.logger.info("  %s: %s", k, preview)
-                
-            # --- Neue Platzhalter ersetzen: project_name und date ---
-            from datetime import datetime
-            # Project Name extrahieren (erste Zeile der Beschreibung oder Fallback)
-            if project_name is None:
-                project_name = "Project"
-                ai_sections = concept.get('sections', {})
-                if 'project_overview' in ai_sections and ai_sections['project_overview']:
-                    overview = ai_sections['project_overview']
-                    if isinstance(overview, dict):
-                        overview_text = overview.get('text', '')
-                    else:
-                        overview_text = overview
-                    lines = overview_text.strip().split('\n')
-                    for line in lines:
-                        if line.strip() and not line.startswith('-') and len(line.strip()) < 100:
-                            project_name = line.strip()
-                            break
-            today_str = datetime.now().strftime('%Y-%m-%d')
-            # Ersetze in allen Absätzen
-            for para in doc.paragraphs:
-                if '{{project_name}}' in para.text:
-                    para.text = para.text.replace('{{project_name}}', project_name)
-                if '{{date}}' in para.text:
-                    para.text = para.text.replace('{{date}}', today_str)
-            # Ersetze in allen Tabellenzellen
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        if '{{project_name}}' in cell.text:
-                            cell.text = cell.text.replace('{{project_name}}', project_name)
-                        if '{{date}}' in cell.text:
-                            cell.text = cell.text.replace('{{date}}', today_str)
+        # --- Ordnername vorbereiten ---
+        safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
+        safe_project_name = re.sub(r'\s+', '_', safe_project_name)
+        max_name_len = 20
+        if len(safe_project_name) > max_name_len:
+            orig_name = safe_project_name
+            safe_project_name = safe_project_name[:max_name_len-3] + '...'
+            warn_msg = f"Projektname wurde für Dateinamen/Ordner automatisch gekürzt: {orig_name} -> {safe_project_name}"
+            self.logger.warning(warn_msg)
+            try:
+                messagebox.showwarning("Projektname gekürzt", warn_msg)
+            except Exception:
+                pass
+        initiator_suffix = f"_{initiator}" if initiator else ""
+        base_folder_name = f"{safe_project_name}{initiator_suffix}"
+        version = 1
+        project_folder = self.output_dir / base_folder_name
+        while project_folder.exists():
+            version += 1
+            project_folder = self.output_dir / f"{base_folder_name}_v{version}"
+        project_folder.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"Projektordner erstellt: {project_folder}")
 
-            # Check if template has any placeholders
-            template_has_placeholders = False
-            placeholder_found = None
+        # --- DOCX-Datei erzeugen (wie bisher, aber im Projektordner) ---
+        # (Kopiere bisherigen Code für Template/Platzhalterersetzung, aber speichere in project_folder)
+        # Extract AI sections
+        ai_sections = concept.get('sections', {})
+        self.logger.info("Concept sections count: %d", len(ai_sections))
+        
+        # Use template if available
+        if self.template_path and os.path.exists(self.template_path):
+            self.logger.info("Template path: %s", self.template_path)
+            self.logger.info("Template exists: %s", os.path.exists(self.template_path))
+            self.logger.info("Using existing template: %s", self.template_path)
+            
+            # Load template
+            doc = Document(self.template_path)
+            
+            # Extract sections for logging
+            self.logger.info("Extracted ai_sections:")
+            for key, value in ai_sections.items():
+                if isinstance(value, dict):
+                    content = value.get('text', '')
+                else:
+                    content = value
+                self.logger.info("  %s: %s", key, content[:100] if content else 'None')
+            
+            # Check if template has placeholders
+            has_placeholders = False
+            found_placeholders = []
             
             # Check paragraphs for placeholders
             self.logger.info("Checking paragraphs for placeholders")
-            for para in doc.paragraphs:
-                for key, title in section_placeholders:
-                    if f"{{{{{key}}}}}" in para.text:
-                        template_has_placeholders = True
-                        placeholder_found = key
-                        self.logger.info("Found placeholder %s in paragraph: %s...", f"{{{{{key}}}}}", para.text[:50])
+            for paragraph in doc.paragraphs:
+                for key in ai_sections.keys():
+                    placeholder = f"{{{{{key}}}}}"
+                    if placeholder in paragraph.text:
+                        has_placeholders = True
+                        found_placeholders.append(key)
+                        self.logger.info("Found placeholder %s in paragraph: %s...", placeholder, paragraph.text[:50])
                         break
-                if template_has_placeholders:
-                    break
-                    
+            
             # Check tables for placeholders
             self.logger.info("Checking tables for placeholders")
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
-                        for key, title in section_placeholders:
-                            if f"{{{{{key}}}}}" in cell.text:
-                                template_has_placeholders = True
-                                placeholder_found = key
-                                self.logger.info("Found placeholder %s in table cell: %s...", f"{{{{{key}}}}}", cell.text[:50])
+                        for key in ai_sections.keys():
+                            placeholder = f"{{{{{key}}}}}"
+                            if placeholder in cell.text:
+                                has_placeholders = True
+                                if key not in found_placeholders:
+                                    found_placeholders.append(key)
+                                self.logger.info("Found placeholder %s in table cell: %s...", placeholder, cell.text[:50])
                                 break
-                        if template_has_placeholders:
-                            break
-                    if template_has_placeholders:
-                        break
-                if template_has_placeholders:
-                    break
-                    
-            self.logger.info("Template has placeholders: %s", template_has_placeholders)
-            if placeholder_found:
-                self.logger.info("Found placeholder: %s", placeholder_found)
-                
-            if template_has_placeholders:
-                # Replace placeholders in existing template
+            
+            self.logger.info("Template has placeholders: %s", has_placeholders)
+            
+            if has_placeholders:
+                self.logger.info("Found placeholders: %s", found_placeholders)
                 self.logger.info("Replacing placeholders in existing template")
-                for key, title in section_placeholders:
+                
+                # Process each placeholder
+                for key in found_placeholders:
                     self.logger.info("Processing placeholder for section: %s", key)
+                    placeholder = f"{{{{{key}}}}}"
                     
-                    # Insert in paragraphs
-                    for para in doc.paragraphs:
-                        if f"{{{{{key}}}}}" in para.text:
-                            self.logger.info("Found placeholder %s in paragraph. Inserting content.", f"{{{{{key}}}}}")
-                            self._insert_single_section(doc, para, key, title, ai_sections, diagram_infos or [], heading_style, normal_style)
-                            
-                    # Insert in tables
+                    # Find and replace in paragraphs
+                    for paragraph in doc.paragraphs:
+                        if placeholder in paragraph.text:
+                            self.logger.info("Found placeholder %s in paragraph. Inserting content.", placeholder)
+                            self._insert_single_section(doc, paragraph, key, key.replace('_', ' ').title(), ai_sections, None, None)
+                            break
+                    
+                    # Find and replace in table cells
                     for table in doc.tables:
                         for row in table.rows:
                             for cell in row.cells:
-                                if f"{{{{{key}}}}}" in cell.text:
-                                    self.logger.info("Found placeholder %s in table cell. Inserting content.", f"{{{{{key}}}}}")
-                                    self._insert_single_section(doc, cell, key, title, ai_sections, diagram_infos or [], heading_style, normal_style)
+                                if placeholder in cell.text:
+                                    self.logger.info("Found placeholder %s in table cell. Inserting content.", placeholder)
+                                    self._insert_single_section(doc, cell, key, key.replace('_', ' ').title(), ai_sections, None, None)
+                                    break
+                            else:
+                                continue
+                            break
+                        else:
+                            continue
+                        break
+                
+                # Replace date and project name placeholders in paragraphs and table cells
+                timestamp = datetime.now().strftime("%Y-%m-%d")
+                safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
+                safe_project_name = re.sub(r'\s+', '_', safe_project_name)
+                
+                # Replace in paragraphs
+                for paragraph in doc.paragraphs:
+                    if "{{date}}" in paragraph.text:
+                        paragraph.text = paragraph.text.replace("{{date}}", timestamp)
+                        self.logger.info("Replaced {{date}} in paragraph")
+                    if "{{project_name}}" in paragraph.text:
+                        paragraph.text = paragraph.text.replace("{{project_name}}", project_name or "Technical Concept")
+                        self.logger.info("Replaced {{project_name}} in paragraph")
+                    if "{{project_name_safe}}" in paragraph.text:
+                        paragraph.text = paragraph.text.replace("{{project_name_safe}}", safe_project_name)
+                        self.logger.info("Replaced {{project_name_safe}} in paragraph")
+                
+                # Replace in table cells
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            if "{{date}}" in cell.text:
+                                cell.text = cell.text.replace("{{date}}", timestamp)
+                                self.logger.info("Replaced {{date}} in table cell")
+                            if "{{project_name}}" in cell.text:
+                                cell.text = cell.text.replace("{{project_name}}", project_name or "Technical Concept")
+                                self.logger.info("Replaced {{project_name}} in table cell")
+                            if "{{project_name_safe}}" in cell.text:
+                                cell.text = cell.text.replace("{{project_name_safe}}", safe_project_name)
+                                self.logger.info("Replaced {{project_name_safe}} in table cell")
+                
+                # Replace placeholders in XML elements (shapes, textboxes)
+                replacements = {}
+                for key, value in ai_sections.items():
+                    if isinstance(value, dict):
+                        content = value.get('text', '')
+                    else:
+                        content = value
+                    if content:
+                        content = self._clean_markdown(content)
+                        replacements[f"{{{{{key}}}}}"] = content
+                
+                # Add date and project name placeholders
+                timestamp = datetime.now().strftime("%Y-%m-%d")
+                safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
+                safe_project_name = re.sub(r'\s+', '_', safe_project_name)
+                
+                replacements["{{date}}"] = timestamp
+                replacements["{{project_name}}"] = project_name or "Technical Concept"
+                replacements["{{project_name_safe}}"] = safe_project_name
+                
+                self._replace_placeholders_in_xml(doc, replacements)
+                
+                # Generate filename with retry logic
+                safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
+                safe_project_name = re.sub(r'\s+', '_', safe_project_name)
+                
+                # Add initiator suffix if provided
+                initiator_suffix = f"_{initiator}" if initiator else ""
+                
+                # Try to save with versioning logic
+                base_filename = f"{safe_project_name}{initiator_suffix}.docx"
+                version = 1
+                
+                while True:
+                    try:
+                        if version == 1:
+                            filename = base_filename
+                        else:
+                            # Insert version before the extension
+                            name_part = base_filename[:-5]  # Remove .docx
+                            filename = f"{name_part}_v{version}.docx"
+                        
+                        docx_path = project_folder / filename
+                        
+                        # Ensure output directory exists
+                        project_folder.mkdir(parents=True, exist_ok=True)
+                        
+                        self.logger.info("Saving document to: %s (version %d)", docx_path, version)
+                        
+                        # Use absolute path and handle long paths
+                        abs_output_path = docx_path.resolve()
+                        self.logger.info("Absolute path: %s", abs_output_path)
+                        
+                        doc.save(str(abs_output_path))
+                        self.logger.info("Document saved successfully: %s", abs_output_path)
+                        self.logger.info("Word document created: %s", abs_output_path)
+                        break
+                        
+                    except PermissionError as e:
+                        self.logger.warning("Permission error on version %d: %s", version, str(e))
+                        version += 1
+                        if version > 100:  # Prevent infinite loop
+                            # Try to save to a simpler path as fallback
+                            try:
+                                fallback_path = Path("output") / f"fallback_{timestamp}_v{version}.docx"
+                                self.logger.info("Trying fallback path: %s", fallback_path)
+                                doc.save(str(fallback_path))
+                                self.logger.info("Document saved to fallback path: %s", fallback_path)
+                                return str(fallback_path)
+                            except Exception as fallback_e:
+                                self.logger.error("Fallback save also failed: %s", str(fallback_e))
+                                raise e
+                        
+                    except Exception as e:
+                        self.logger.error("Error saving document: %s", str(e))
+                        raise e
+                
+                docx_path = project_folder / filename
             else:
-                # Create new document structure if no placeholders found
-                self.logger.info("No placeholders found in template, creating new document structure")
-                doc = Document()
-                self._setup_document_styles(doc)
-                heading_style = 'CustomHeading1'
-                normal_style = 'CustomNormal'
-                
-                # Add title
-                doc.add_paragraph("Technical Concept Document", style='CustomTitle')
-                doc.add_paragraph()
-                
-                # Add sections
-                for key, title in section_placeholders:
-                    self.logger.info("Adding section %s: %s", key, title)
-                    self._insert_single_section(doc, None, key, title, ai_sections, diagram_infos or [], heading_style, normal_style)
+                self.logger.warning("No placeholders found in template, creating new document")
+                # Fallback to creating new document
+                docx_path = self._create_new_document(concept, project_name, initiator)
         else:
-            self.logger.info("No template found, creating new document")
-            doc = Document()
-            self._setup_document_styles(doc)
-            heading_style = 'CustomHeading1'
-            normal_style = 'CustomNormal'
-            ai_sections = concept.get('sections', {})
-            
-            self.logger.info("Extracted ai_sections:")
-            for k, v in ai_sections.items():
-                if isinstance(v, str):
-                    preview = v[:100]
-                elif isinstance(v, dict) and 'text' in v and isinstance(v['text'], str):
-                    preview = v['text'][:100]
-                else:
-                    preview = str(v)[:100]
-                self.logger.info("  %s: %s", k, preview)
-                
-            # Add title
-            doc.add_paragraph("Technical Concept Document", style='CustomTitle')
-            doc.add_paragraph()
-            
-            # Add sections
-            for key, title in section_placeholders:
-                self.logger.info("Inserting section %s (no template mode)", key)
-                self._insert_single_section(doc, None, key, title, ai_sections, diagram_infos or [], heading_style, normal_style)
-                
-            self._add_metadata(doc, concept)
-            
-        # Ersetze Platzhalter im gesamten XML (inkl. Shapes/Textboxen)
-        safe_project_name = str(project_name) if project_name else "Project"
-        self._replace_placeholders_in_xml(doc, {
-            '{{project_name}}': safe_project_name,
-            '{{date}}': today_str
-        })
+            self.logger.info("No template available, creating new document")
+            docx_path = self._create_new_document(concept, project_name, initiator)
 
-        docx_output_dir = Path(self.output_dir) / "docx"
-        docx_output_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_project_name = re.sub(r'[^a-zA-Z0-9_-]', '_', project_name)[:40]
-        filename = f"{safe_project_name}_{today_str}.docx"
-        output_path = docx_output_dir / filename
+        # --- TXT-Summary speichern ---
+        summary_txt = f"Project Name: {project_name}\nDescription: {description}\nUpwork Link: {upwork_link or ''}\n"
+        summary_path = project_folder / "summary.txt"
+        with open(summary_path, "w", encoding="utf-8") as f:
+            f.write(summary_txt)
+        self.logger.info(f"Summary gespeichert: {summary_path}")
+
+        # --- Upwork-Link als .url-Datei speichern (nur wenn Link vorhanden) ---
+        if upwork_link:
+            url_path = project_folder / "upwork_link.url"
+            with open(url_path, "w", encoding="utf-8") as f:
+                f.write(f"[InternetShortcut]\nURL={upwork_link}\n")
+            self.logger.info(f"Upwork-Link gespeichert: {url_path}")
+
+        # --- Pfadlängen-Prüfung ---
+        max_path_length = 240
+        if len(str(docx_path)) > max_path_length:
+            warn_msg = f"Der Pfad der Word-Datei ist zu lang (>{max_path_length} Zeichen)!\nBitte wähle einen kürzeren Projektnamen oder ein anderes Zielverzeichnis.\n\nPfad:\n{docx_path}"
+            self.logger.error(warn_msg)
+            try:
+                messagebox.showerror("Pfad zu lang", warn_msg)
+            except Exception:
+                pass  # Falls kein GUI-Kontext vorhanden ist
+            raise OSError(warn_msg)
+
+        return str(docx_path)
+
+    def _create_new_document(self, concept: Dict[str, Any], project_name: Optional[str] = None, initiator: Optional[str] = None) -> str:
+        """Create a new document from scratch (fallback method)"""
+        self.logger.info("Creating new document from scratch")
         
-        self.logger.info("Saving document to: %s", output_path)
-        doc.save(str(output_path))
-        self.logger.info("Document saved successfully: %s", output_path)
+        doc = Document()
+        self._setup_document_styles(doc)
+        
+        # Add title page
+        self._add_title_page(doc, concept)
+        
+        # Add table of contents
+        self._add_table_of_contents(doc)
+        
+        # Add project overview
+        self._add_project_overview(doc, concept)
+        
+        # Add system architecture
+        self._add_system_architecture(doc, concept)
+        
+        # Add technical requirements
+        self._add_technical_requirements(doc, concept)
+        
+        # Add implementation approach
+        self._add_implementation_approach(doc, concept)
+        
+        # Add metadata
+        self._add_metadata(doc, concept)
+        
+        # Generate filename with versioning
+        safe_project_name = re.sub(r'[<>:"/\\|?*]', '_', project_name or "Technical_Concept")
+        safe_project_name = re.sub(r'\s+', '_', safe_project_name)
+        
+        # Add initiator suffix if provided
+        initiator_suffix = f"_{initiator}" if initiator else ""
+        
+        base_filename = f"{safe_project_name}{initiator_suffix}.docx"
+        version = 1
+        
+        while True:
+            try:
+                if version == 1:
+                    filename = base_filename
+                else:
+                    # Insert version before the extension
+                    name_part = base_filename[:-5]  # Remove .docx
+                    filename = f"{name_part}_v{version}.docx"
+                
+                output_path = self.output_dir / filename
+                
+                # Ensure output directory exists
+                self.output_dir.mkdir(parents=True, exist_ok=True)
+                
+                self.logger.info("Saving new document to: %s (version %d)", output_path, version)
+                
+                # Use absolute path
+                abs_output_path = output_path.resolve()
+                doc.save(str(abs_output_path))
+                self.logger.info("New document created: %s", abs_output_path)
+                break
+                
+            except PermissionError as e:
+                self.logger.warning("Permission error on version %d: %s", version, str(e))
+                version += 1
+                if version > 100:  # Prevent infinite loop
+                    raise e
+        
         return str(output_path)
-    
+
     def _setup_document_styles(self, doc):
         """Setup document styles"""
         # Title style
         title_style = doc.styles.add_style('CustomTitle', WD_STYLE_TYPE.PARAGRAPH)
-        title_style.font.name = 'Inter Light'
-        title_style.font.size = Pt(24)
+        title_style.font.name = 'Arial'
+        title_style.font.size = Pt(18)
         title_style.font.bold = True
         title_style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title_style.paragraph_format.space_after = Pt(12)
         
-        # Heading 1 style
-        h1_style = doc.styles.add_style('CustomHeading1', WD_STYLE_TYPE.PARAGRAPH)
-        h1_style.font.name = 'Inter Light'
-        h1_style.font.size = Pt(16)
-        h1_style.font.bold = True
-        h1_style.paragraph_format.space_before = Pt(12)
-        h1_style.paragraph_format.space_after = Pt(6)
+        # Heading style
+        heading_style = doc.styles.add_style('CustomHeading', WD_STYLE_TYPE.PARAGRAPH)
+        heading_style.font.name = 'Arial'
+        heading_style.font.size = Pt(14)
+        heading_style.font.bold = True
         
-        # Heading 2 style
-        h2_style = doc.styles.add_style('CustomHeading2', WD_STYLE_TYPE.PARAGRAPH)
-        h2_style.font.name = 'Inter Light'
-        h2_style.font.size = Pt(14)
-        h2_style.font.bold = True
-        h2_style.paragraph_format.space_before = Pt(10)
-        h2_style.paragraph_format.space_after = Pt(4)
-        
-        # Normal text style
+        # Normal style
         normal_style = doc.styles.add_style('CustomNormal', WD_STYLE_TYPE.PARAGRAPH)
-        normal_style.font.name = 'Inter Light'
+        normal_style.font.name = 'Arial'
         normal_style.font.size = Pt(11)
-        normal_style.paragraph_format.space_after = Pt(6)
-    
+
     def _add_title_page(self, doc, concept: Dict[str, Any]):
         """Add title page"""
-        # Title
-        title = doc.add_paragraph("Technical Concept Document", style='CustomTitle')
+        title = doc.add_paragraph("Technical Concept", style='CustomTitle')
+        doc.add_paragraph()  # Spacing
         
-        # Subtitle
-        subtitle = doc.add_paragraph("Generated by Zeta Proposer", style='CustomNormal')
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Add project description if available
+        if 'description' in concept:
+            desc_para = doc.add_paragraph(concept['description'], style='CustomNormal')
+            desc_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # Date
-        date_para = doc.add_paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y')}", style='CustomNormal')
-        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Add some space
-        doc.add_paragraph()
-        doc.add_paragraph()
-        
-        # Project overview from concept
-        if 'sections' in concept and 'project_overview' in concept['sections']:
-            overview = concept['sections']['project_overview']
-            if overview and overview != "Section 'PROJECT OVERVIEW' not found in response":
-                # Clean markdown and extract project name if possible
-                cleaned_overview = self._clean_markdown(overview)
-                lines = cleaned_overview.split('\n')
-                project_name = "Technical Project"
-                for line in lines[:5]:  # Check first 5 lines
-                    if line.strip() and not line.startswith('-') and len(line.strip()) < 100:
-                        project_name = line.strip()
-                        break
-                
-                project_title = doc.add_paragraph(project_name, style='CustomHeading1')
-                project_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Page break
         doc.add_page_break()
-    
+
     def _add_table_of_contents(self, doc):
-        """Add table of contents placeholder"""
-        toc_heading = doc.add_paragraph("Table of Contents", style='CustomHeading1')
-        toc_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Add TOC entries
-        toc_entries = [
-            "1. Project Overview",
-            "2. System Architecture", 
-            "3. Technical Requirements",
-            "4. Implementation Approach",
-            "5. Diagrams and Visualizations"
-        ]
-        
-        for entry in toc_entries:
-            toc_para = doc.add_paragraph(entry, style='CustomNormal')
-            toc_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        
+        """Add table of contents"""
+        toc_heading = doc.add_paragraph("Table of Contents", style='CustomHeading')
+        doc.add_paragraph("1. Project Overview", style='CustomNormal')
+        doc.add_paragraph("2. System Architecture", style='CustomNormal')
+        doc.add_paragraph("3. Technical Requirements", style='CustomNormal')
+        doc.add_paragraph("4. Implementation Approach", style='CustomNormal')
         doc.add_page_break()
-    
+
     def _add_project_overview(self, doc, concept: Dict[str, Any]):
         """Add project overview section"""
-        heading = doc.add_paragraph("1. Project Overview", style='CustomHeading1')
-        
-        if 'sections' in concept and 'project_overview' in concept['sections']:
-            overview = concept['sections']['project_overview']
-            if overview and overview != "Section 'PROJECT OVERVIEW' not found in response":
-                # Clean markdown and split into paragraphs
-                cleaned_overview = self._clean_markdown(overview)
-                paragraphs = cleaned_overview.split('\n\n')
-                for para in paragraphs:
-                    if para.strip():
-                        doc.add_paragraph(para.strip(), style='CustomNormal')
-            else:
-                doc.add_paragraph("Project overview information not available.", style='CustomNormal')
-        else:
-            doc.add_paragraph("Project overview information not available.", style='CustomNormal')
-    
-    def _add_system_architecture(self, doc, concept: Dict[str, Any], diagram_paths: Optional[List[str]] = None):
+        doc.add_paragraph("1. Project Overview", style='CustomHeading')
+        doc.add_paragraph("This section provides an overview of the technical concept and project scope.", style='CustomNormal')
+        doc.add_paragraph()
+
+    def _add_system_architecture(self, doc, concept: Dict[str, Any]):
         """Add system architecture section"""
-        if diagram_paths is None:
-            diagram_paths = []
-        heading = doc.add_paragraph("2. System Architecture", style='CustomHeading1')
-        
-        if 'sections' in concept and 'system_architecture' in concept['sections']:
-            architecture = concept['sections']['system_architecture']
-            if architecture and architecture != "Section 'SYSTEM ARCHITECTURE' not found in response":
-                # Clean markdown and split into paragraphs
-                cleaned_architecture = self._clean_markdown(architecture)
-                paragraphs = cleaned_architecture.split('\n\n')
-                for para in paragraphs:
-                    if para.strip():
-                        doc.add_paragraph(para.strip(), style='CustomNormal')
-            else:
-                doc.add_paragraph("System architecture information not available.", style='CustomNormal')
-        else:
-            doc.add_paragraph("System architecture information not available.", style='CustomNormal')
-        
-        # Add architecture diagram if available
-        if diagram_paths:
-            for diagram_path in diagram_paths:
-                if "architecture" in diagram_path.lower():
-                    try:
-                        # Ensure absolute path
-                        abs_path = os.path.abspath(diagram_path)
-                        self.logger.info(f"[DIAGRAM-INSERT] Trying to insert architecture diagram: {abs_path}")
-                        
-                        # Check if file exists
-                        if not os.path.exists(abs_path):
-                            self.logger.error(f"[DIAGRAM-INSERT] Architecture diagram file does not exist: {abs_path}")
-                            doc.add_paragraph("System Architecture Diagram (file not found)", style='CustomNormal')
-                            continue
-                        
-                        doc.add_paragraph("System Architecture Diagram:", style='CustomHeading2')
-                        doc.add_picture(abs_path, width=Inches(6))
-                        self.logger.info(f"[DIAGRAM-INSERT] Successfully inserted architecture diagram: {abs_path}")
-                    except Exception as e:
-                        self.logger.error(f"[DIAGRAM-INSERT] Error adding architecture diagram {diagram_path}: {str(e)}", exc_info=True)
-                        doc.add_paragraph(f"Error adding architecture diagram: {str(e)}", style='CustomNormal')
-    
+        doc.add_paragraph("2. System Architecture", style='CustomHeading')
+        doc.add_paragraph("This section describes the system architecture and technical approach.", style='CustomNormal')
+        doc.add_paragraph()
+
     def _add_technical_requirements(self, doc, concept: Dict[str, Any]):
         """Add technical requirements section"""
-        heading = doc.add_paragraph("3. Technical Requirements", style='CustomHeading1')
-        
-        if 'sections' in concept and 'technical_requirements' in concept['sections']:
-            requirements = concept['sections']['technical_requirements']
-            if requirements and requirements != "Section 'TECHNICAL REQUIREMENTS' not found in response":
-                # Clean markdown and split into paragraphs
-                cleaned_requirements = self._clean_markdown(requirements)
-                paragraphs = cleaned_requirements.split('\n\n')
-                for para in paragraphs:
-                    if para.strip():
-                        doc.add_paragraph(para.strip(), style='CustomNormal')
-            else:
-                doc.add_paragraph("Technical requirements information not available.", style='CustomNormal')
-        else:
-            doc.add_paragraph("Technical requirements information not available.", style='CustomNormal')
-    
+        doc.add_paragraph("3. Technical Requirements", style='CustomHeading')
+        doc.add_paragraph("This section outlines the technical requirements and specifications.", style='CustomNormal')
+        doc.add_paragraph()
+
     def _add_implementation_approach(self, doc, concept: Dict[str, Any]):
         """Add implementation approach section"""
-        heading = doc.add_paragraph("4. Implementation Approach", style='CustomHeading1')
-        
-        if 'sections' in concept and 'implementation_approach' in concept['sections']:
-            approach = concept['sections']['implementation_approach']
-            if approach and approach != "Section 'IMPLEMENTATION APPROACH' not found in response":
-                # Clean markdown and split into paragraphs
-                cleaned_approach = self._clean_markdown(approach)
-                paragraphs = cleaned_approach.split('\n\n')
-                for para in paragraphs:
-                    if para.strip():
-                        doc.add_paragraph(para.strip(), style='CustomNormal')
-            else:
-                doc.add_paragraph("Implementation approach information not available.", style='CustomNormal')
-        else:
-            doc.add_paragraph("Implementation approach information not available.", style='CustomNormal')
-    
-    def _add_diagrams_section(self, doc, diagram_paths: List[str]):
-        """Add diagrams section"""
-        self.logger.info("Adding diagrams to document:")
-        self.logger.info(diagram_paths)
-        heading = doc.add_paragraph("5. Diagrams and Visualizations", style='CustomHeading1')
-        
-        for diagram_path in diagram_paths:
-            try:
-                # Ensure absolute path
-                abs_path = os.path.abspath(diagram_path)
-                self.logger.info(f"[DIAGRAM-INSERT] Trying to insert: {abs_path}")
-                
-                # Check if file exists
-                if not os.path.exists(abs_path):
-                    self.logger.error(f"[DIAGRAM-INSERT] File does not exist: {abs_path}")
-                    doc.add_paragraph(f"Diagram file not found: {Path(diagram_path).name}", style='CustomNormal')
-                    continue
-                
-                # Extract diagram name from path
-                diagram_name = Path(diagram_path).stem.replace('_', ' ').title()
-                doc.add_paragraph(f"{diagram_name}:", style='CustomHeading2')
-                
-                # Add picture with absolute path
-                doc.add_picture(abs_path, width=Inches(6))
-                self.logger.info(f"[DIAGRAM-INSERT] Successfully inserted: {abs_path}")
-                doc.add_paragraph()  # Add some space
-            except Exception as e:
-                self.logger.error(f"[DIAGRAM-INSERT] Error adding diagram {diagram_path}: {str(e)}", exc_info=True)
-                doc.add_paragraph(f"Error adding diagram {Path(diagram_path).name}: {str(e)}", style='CustomNormal')
-    
+        doc.add_paragraph("4. Implementation Approach", style='CustomHeading')
+        doc.add_paragraph("This section describes the implementation approach and methodology.", style='CustomNormal')
+        doc.add_paragraph()
+
     def _add_metadata(self, doc, concept: Dict[str, Any]):
-        """Add document metadata"""
-        doc.add_page_break()
-        
-        heading = doc.add_paragraph("Document Information", style='CustomHeading1')
-        
-        # Add metadata
-        metadata_items = [
-            f"Generated by: {concept.get('metadata', {}).get('generated_by', 'Zeta Proposer')}",
-            f"Generated on: {datetime.now().strftime('%B %d, %Y at %H:%M:%S')}",
-            f"Document version: 1.0"
-        ]
-        
-        for item in metadata_items:
-            doc.add_paragraph(item, style='CustomNormal') 
+        """Add metadata section"""
+        doc.add_paragraph("Metadata", style='CustomHeading')
+        doc.add_paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style='CustomNormal')
+        doc.add_paragraph(f"AI Provider: {concept.get('provider', 'Unknown')}", style='CustomNormal')
 
     def _remove_dot_blocks(self, text: str) -> str:
+        """Remove DOT code blocks from text"""
+        self.logger.debug("Removing DOT blocks from text")
+        self.logger.debug("Input text length: %d", len(text) if text else 0)
+        
         if not text:
             return text
-        self.logger.info(f"[DOT-REMOVE] Vorher: {text[:200]}")
-        # Entfernt alle ```dot ... ```-Blöcke, ```graph ... ```-Blöcke und ``` ... ```-Blöcke mit dot/graph
-        text = re.sub(r'```\s*(dot|graph)?[\s\S]+?```', '', text, flags=re.IGNORECASE)
-        # Entfernt Zeilen, die mit 'digraph', 'graph', '{', '}' beginnen (auch mit Whitespaces)
+        
+        # Remove ```dot ... ``` blocks
+        text = re.sub(r'```dot[\s\S]+?```', '', text, flags=re.IGNORECASE)
+        # Remove ```graph ... ``` blocks
+        text = re.sub(r'```graph[\s\S]+?```', '', text, flags=re.IGNORECASE)
+        # Remove digraph blocks
+        text = re.sub(r'```digraph[\s\S]+?```', '', text, flags=re.IGNORECASE)
+        
+        # Remove lines that start with 'digraph' or 'graph'
         lines = text.splitlines()
-        cleaned_lines = [line for line in lines if not line.strip().lower().startswith(('digraph', 'graph', '{', '}'))]
+        cleaned_lines = [line for line in lines if not line.strip().lower().startswith(('digraph', 'graph'))]
         result = '\n'.join(cleaned_lines)
-        self.logger.info(f"[DOT-REMOVE] Nachher: {result[:200]}")
+        
+        self.logger.debug("Text after DOT removal length: %d", len(result))
         return result 

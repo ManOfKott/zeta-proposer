@@ -14,7 +14,7 @@
 
 1. Starten Sie `Zeta_Proposer.exe`
 2. Klicken Sie auf "Einstellungen"
-3. Wählen Sie "OpenAI" als Provider
+3. Wählen Sie "OpenAI" als Provider (Standard: GPT-4o)
 4. Geben Sie Ihren API Key ein: `sk-your-openai-api-key-here`
 5. Klicken Sie auf "Speichern"
 
@@ -23,7 +23,7 @@
 1. Installieren Sie Ollama von [https://ollama.ai](https://ollama.ai)
 2. Starten Sie den Ollama-Service: `ollama serve`
 3. Laden Sie ein Modell: `ollama pull llama3`
-4. In der GUI: Wählen Sie "Ollama" als Provider
+4. In der GUI: Wählen Sie "Ollama" als Provider (Standard: llama3)
 5. Klicken Sie auf "Speichern"
 
 **Hinweis**: Ollama bietet Datenschutz durch lokale Ausführung, aber die Ergebnisse sind qualitativ schlechter als OpenAI.
@@ -58,8 +58,8 @@ Zeta_Proposer/
 1. **Projektname eingeben**: Geben Sie einen aussagekräftigen Namen ein
 2. **Beschreibung**: Beschreiben Sie Ihr Projekt detailliert
 3. **Provider wählen**:
-   - **OpenAI GPT-4**: Beste Qualität (empfohlen)
-   - **Ollama**: Lokal, Datenschutz, aber geringere Qualität
+   - **OpenAI GPT-4o**: Beste Qualität (Standard, empfohlen)
+   - **Ollama**: Lokal, Datenschutz, aber geringere Qualität (Standard: llama3)
 4. **Generieren**: Klicken Sie auf "Generate Concept"
 
 ## 📤 Ausgabe

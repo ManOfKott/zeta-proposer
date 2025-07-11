@@ -4,8 +4,8 @@ import threading
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from docx2pdf import convert
-from pdf2image import convert_from_path
+# from docx2pdf import convert  # Optional for PDF conversion
+# from pdf2image import convert_from_path  # Optional, wird nicht benötigt
 from PIL import Image, ImageTk
 import time
 import logging
@@ -18,7 +18,7 @@ import re
 
 from .ai_service import AIServiceManager
 from .word_generator import WordDocumentGenerator
-from .graphviz_diagram import GraphvizDiagramGenerator
+
 
 class GuiLogHandler(logging.Handler):
     def __init__(self, gui_log_func):
@@ -39,33 +39,31 @@ class ZetaProposerGUI:
         # Load environment variables (for backward compatibility)
         load_dotenv()
         
-        # Initialize services
-        self.ai_service = AIServiceManager()
-        self.word_generator = WordDocumentGenerator()
-        self.visio_generator = GraphvizDiagramGenerator()
-        
-        # Set template if available
-        if hasattr(self, 'selected_template') and self.selected_template:
-            self.word_generator.set_template(self.selected_template)
-        
+        # Initialize default values first
         self.log_widget = None
         self.logger = None
         self.logfile_path = None
         self.selected_template = None
-        self.ai_provider_var = tk.StringVar(value="ollama")
+        self.ai_provider_var = tk.StringVar(value="openai")
         self.openai_api_key = ""
-        self.openai_model = "gpt-4"
+        self.openai_model = "gpt-4o"
         self.ollama_url = "http://localhost:11434"
-        self.ollama_model = "llama3.2"
+        self.ollama_model = "llama3"
         self.alignment_threshold = 0.6  # Defaultwert
+        self.output_directory = "output/docx"  # Defaultwert
+        self.initiator = ""  # Defaultwert
         self.cancel_requested = False  # Für Abbrechen-Button
+        
+        # Load configuration (this will override defaults)
         self.load_config()
         
-        # Set template after config is loaded
+        # Initialize services with configured output directory
+        self.ai_service = AIServiceManager()
+        self.word_generator = WordDocumentGenerator(self.output_directory)
+        
+        # Set template if available
         if self.selected_template:
             self.word_generator.set_template(self.selected_template)
-            if hasattr(self, 'logger') and self.logger:
-                self.logger.info("Template set: %s", self.selected_template)
         
         self.setup_ui()
         # Beim Schließen speichern
@@ -77,17 +75,28 @@ class ZetaProposerGUI:
         self.root.destroy()
         
     def show_documents_overview(self):
-        """Zeigt eine Übersicht aller erstellten docx-Dokumente und ermöglicht das Öffnen per Klick."""
+        """Zeigt eine Übersicht aller erstellten docx-Dokumente (rekursiv in Unterordnern) und ermöglicht das Öffnen per Klick."""
         import glob
         import platform
         import subprocess
-        from tkinter import Toplevel, Listbox, Button, END, Scrollbar, RIGHT, Y, LEFT, BOTH
-        docx_dir = Path("output") / "docx"
-        docx_dir.mkdir(parents=True, exist_ok=True)
-        files = sorted(docx_dir.glob("*.docx"), key=os.path.getmtime, reverse=True)
+        from tkinter import Toplevel, Listbox, Button, END, Scrollbar, RIGHT, Y, LEFT, BOTH, Label
+        from pathlib import Path
+        
+        # Verwende den aktuell konfigurierten Output-Ordner
+        output_dir = Path(self.output_directory)
+        if not output_dir.exists():
+            messagebox.showwarning("Warnung", f"Output-Ordner existiert nicht: {output_dir}")
+            return
+        
+        # Rekursive Suche nach allen docx-Dateien in Unterordnern
+        files = sorted(output_dir.glob("*/*.docx"), key=os.path.getmtime, reverse=True)
         win = Toplevel(self.root)
-        win.title("Erstellte Dokumente")
-        win.geometry("500x400")
+        win.title(f"Erstellte Dokumente - {output_dir}")
+        win.geometry("600x450")
+        
+        # Zeige den aktuellen Output-Ordner an
+        folder_label = Label(win, text=f"Output-Ordner: {output_dir}", font=("Arial", 9))
+        folder_label.pack(pady=(5, 0))
         lb = Listbox(win, width=80)
         lb.pack(side=LEFT, fill=BOTH, expand=True)
         sb = Scrollbar(win)
@@ -95,12 +104,12 @@ class ZetaProposerGUI:
         lb.config(yscrollcommand=sb.set)
         sb.config(command=lb.yview)
         for f in files:
-            lb.insert(END, f.name)
+            lb.insert(END, str(f.relative_to(output_dir)))
         def open_selected(event=None):
             sel = lb.curselection()
             if not sel:
                 return
-            file_path = docx_dir / lb.get(sel[0])
+            file_path = output_dir / lb.get(sel[0])
             file_path = file_path.resolve()
             try:
                 if platform.system() == "Windows":
@@ -112,87 +121,67 @@ class ZetaProposerGUI:
             except Exception as e:
                 messagebox.showerror("Fehler", f"Konnte Datei nicht öffnen: {e}")
         lb.bind('<Double-Button-1>', open_selected)
-        # open_btn = Button(win, text="Öffnen", command=open_selected)
-        # open_btn.pack()
 
     def setup_ui(self):
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
-        
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1)
-        
+        main_frame.columnconfigure(0, weight=0)  # Label-Spalte
+        main_frame.columnconfigure(1, weight=1)  # Eingabefeld-Spalte
         # Title
         title_label = ttk.Label(main_frame, text="Zeta Proposer", font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
-        
+        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         # Settings button
         settings_btn = ttk.Button(main_frame, text="Einstellungen", command=self.open_settings)
-        settings_btn.grid(row=1, column=2, padx=(10, 0), pady=5)
-        
+        settings_btn.grid(row=0, column=2, padx=(10, 0), pady=5, sticky="e")
         # Project Name
-        ttk.Label(main_frame, text="Project Name:").grid(row=2, column=0, sticky="nw", pady=5)
+        ttk.Label(main_frame, text="Project Name:").grid(row=1, column=0, sticky="nw", pady=5)
         self.project_name_var = tk.StringVar()
-        self.project_name_entry = ttk.Entry(main_frame, textvariable=self.project_name_var, width=50)
-        self.project_name_entry.grid(row=2, column=1, columnspan=2, sticky="ew", 
-                                   padx=(10, 0), pady=5)
-        # Add placeholder text
+        self.project_name_entry = ttk.Entry(main_frame, textvariable=self.project_name_var)
+        self.project_name_entry.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=5)
         self.project_name_entry.insert(0, "Enter project name here...")
         self.project_name_entry.bind('<FocusIn>', lambda e: self.on_project_name_focus_in())
         self.project_name_entry.bind('<FocusOut>', lambda e: self.on_project_name_focus_out())
-        
+        # Upwork Link
+        ttk.Label(main_frame, text="Upwork Link:").grid(row=2, column=0, sticky="nw", pady=5)
+        self.upwork_link_var = tk.StringVar()
+        self.upwork_link_entry = ttk.Entry(main_frame, textvariable=self.upwork_link_var)
+        self.upwork_link_entry.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=5)
         # Project Description
         ttk.Label(main_frame, text="Project Description:").grid(row=3, column=0, sticky="nw", pady=5)
-        self.description_text = scrolledtext.ScrolledText(main_frame, height=15, width=70)
-        self.description_text.grid(row=3, column=1, columnspan=2, sticky="nsew", 
-                                 padx=(10, 0), pady=5)
-        
+        self.description_text = scrolledtext.ScrolledText(main_frame, height=10)
+        self.description_text.grid(row=3, column=1, sticky="nsew", padx=(10, 0), pady=5)
+        main_frame.rowconfigure(3, weight=1)
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=20)
-        
-        # Generate button
-        self.generate_btn = ttk.Button(button_frame, text="Generate Technical Concept", 
-                                     command=self.generate_concept)
+        button_frame.grid(row=4, column=0, columnspan=2, pady=20)
+        self.generate_btn = ttk.Button(button_frame, text="Generate Technical Concept", command=self.generate_concept)
         self.generate_btn.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Cancel button
         self.cancel_btn = ttk.Button(button_frame, text="Abbrechen", command=self.cancel_generation, state="disabled")
         self.cancel_btn.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Load from file button
         load_btn = ttk.Button(button_frame, text="Load from File", command=self.load_from_file)
         load_btn.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Progress bar
         self.progress_var = tk.StringVar(value="Ready")
         progress_label = ttk.Label(button_frame, textvariable=self.progress_var)
         progress_label.pack(side=tk.LEFT, padx=(20, 0))
-        
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
-        status_bar.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
-        
-        # Log window
-        log_label = ttk.Label(main_frame, text="Program Log:")
-        log_label.grid(row=6, column=0, sticky=tk.W, pady=(10, 0))
-        self.log_widget = scrolledtext.ScrolledText(main_frame, height=8, width=90, state="disabled")
-        self.log_widget.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-        
-        # Logfile view button
-        view_log_btn = ttk.Button(main_frame, text="Letztes Log anzeigen", command=self.show_last_log)
-        view_log_btn.grid(row=8, column=0, sticky=tk.W, pady=(0, 10))
-        # Dokumentenübersicht-Button
+        status_bar.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        # Log window (initial ausgeblendet)
+        self.log_visible = False
+        self.log_label = ttk.Label(main_frame, text="Program Log:")
+        self.log_widget = scrolledtext.ScrolledText(main_frame, height=8, state="disabled")
+        # Log-Label und Log-Widget werden NICHT gegridet (also nicht sichtbar) beim Start
+        self.toggle_log_btn = ttk.Button(main_frame, text="Log anzeigen", command=self.toggle_log)
+        self.toggle_log_btn.grid(row=6, column=0, sticky=tk.W, pady=(0, 10))
         view_docs_btn = ttk.Button(main_frame, text="Erstellte Dokumente anzeigen", command=self.show_documents_overview)
-        view_docs_btn.grid(row=8, column=1, sticky=tk.W, pady=(0, 10))
-        # Set initial focus
+        view_docs_btn.grid(row=6, column=1, sticky=tk.W, pady=(0, 10))
         self.project_name_entry.focus()
-        
+
     def on_project_name_focus_in(self):
         """Handle focus in event for project name entry"""
         if self.project_name_var.get() == "Enter project name here...":
@@ -205,6 +194,7 @@ class ZetaProposerGUI:
         
     def setup_logger(self):
         """Set up a new logger and log file for each generation run"""
+        # Immer im output-Ordner des aktuellen Projekts, nicht im konfigurierten Output-Ordner
         logs_dir = Path("output") / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -240,15 +230,51 @@ class ZetaProposerGUI:
         try:
             with open(self.CONFIG_PATH, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            self.ai_provider_var.set(cfg.get("ai_provider", "ollama"))
+            self.ai_provider_var.set(cfg.get("ai_provider", "openai"))
             self.selected_template = cfg.get("selected_template")
             self.openai_api_key = cfg.get("openai_api_key", "")
-            self.openai_model = cfg.get("openai_model", "gpt-4")
+            self.openai_model = cfg.get("openai_model", "gpt-4o")
             self.ollama_url = cfg.get("ollama_url", "http://localhost:11434")
-            self.ollama_model = cfg.get("ollama_model", "llama3.2")
+            self.ollama_model = cfg.get("ollama_model", "llama3")
             self.alignment_threshold = float(cfg.get("alignment_threshold", 0.6))
+            self.output_directory = cfg.get("output_directory", "output/docx")
+            self.initiator = cfg.get("initiator", "")
+        except FileNotFoundError:
+            # Erstelle Standard-Konfiguration wenn Datei nicht existiert
+            self._create_default_config()
         except Exception:
-            pass
+            # Bei anderen Fehlern auch Standard-Konfiguration erstellen
+            self._create_default_config()
+
+    def _create_default_config(self):
+        """Erstelle eine Standard-Konfiguration wenn config.json nicht existiert"""
+        default_config = {
+            "ai_provider": "openai",
+            "selected_template": None,
+            "openai_api_key": "",
+            "openai_model": "gpt-4o",
+            "ollama_url": "http://localhost:11434",
+            "ollama_model": "llama3",
+            "alignment_threshold": 0.6,
+            "output_directory": "output/docx",
+            "initiator": ""
+        }
+        try:
+            with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(default_config, f, indent=2)
+            print(f"Created default config file: {self.CONFIG_PATH}")
+        except Exception as e:
+            print(f"Could not create default config file: {e}")
+
+    def _reinitialize_services(self):
+        """Reinitialize services with current output directory"""
+        self.word_generator = WordDocumentGenerator(self.output_directory)
+        
+        # Set template if available
+        if hasattr(self, 'selected_template') and self.selected_template:
+            self.word_generator.set_template(self.selected_template)
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info("Template set in word generator: %s", self.selected_template)
 
     def save_config(self):
         cfg = {
@@ -258,7 +284,9 @@ class ZetaProposerGUI:
             "openai_model": self.openai_model,
             "ollama_url": self.ollama_url,
             "ollama_model": self.ollama_model,
-            "alignment_threshold": self.alignment_threshold
+            "alignment_threshold": self.alignment_threshold,
+            "output_directory": self.output_directory,
+            "initiator": self.initiator
         }
         with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2)
@@ -266,11 +294,27 @@ class ZetaProposerGUI:
     def open_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Einstellungen")
-        settings_window.geometry("600x600")
+        settings_window.geometry("600x700")
         settings_window.transient(self.root)
         settings_window.grab_set()
-        frame = ttk.Frame(settings_window, padding="20")
-        frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create main frame with scrollbar
+        main_frame = ttk.Frame(settings_window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Create canvas for scrolling
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
         # Info box for placeholders
         info_text = (
             "Verfügbare Platzhalter für das Technical Concept (im Template verwenden):\n"
@@ -283,17 +327,26 @@ class ZetaProposerGUI:
             "  {{ux_ui}}  → UX/UI design and prototyping\n"
             "\nJeder Platzhalter wird durch den jeweiligen Abschnitt ersetzt. Die Formatierung folgt den Überschriften- und Text-Styles des Templates."
         )
-        info_label = tk.Label(frame, text=info_text, justify=tk.LEFT, anchor="w", bg="#f0f0f0", relief=tk.SUNKEN, wraplength=540)
+        info_label = tk.Label(scrollable_frame, text=info_text, justify=tk.LEFT, anchor="w", bg="#f0f0f0", relief=tk.SUNKEN, wraplength=540)
         info_label.pack(fill=tk.X, pady=(0, 15))
-        ttk.Label(frame, text="AI Provider:").pack(anchor=tk.W)
-        ai_provider_combo = ttk.Combobox(frame, textvariable=self.ai_provider_var, values=["openai", "ollama"], state="readonly")
+        
+        # AI Provider
+        ttk.Label(scrollable_frame, text="AI Provider:").pack(anchor=tk.W)
+        ai_provider_combo = ttk.Combobox(scrollable_frame, textvariable=self.ai_provider_var, values=["openai", "ollama"], state="readonly")
         ai_provider_combo.pack(fill=tk.X, pady=(0, 10))
-        config_frame = ttk.Frame(frame)
+        
+        # Configuration frame
+        config_frame = ttk.Frame(scrollable_frame)
         config_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        # Variables for settings
         openai_api_key_var = tk.StringVar(value=self.openai_api_key)
         openai_model_var = tk.StringVar(value=self.openai_model)
         ollama_url_var = tk.StringVar(value=self.ollama_url)
         ollama_model_var = tk.StringVar(value=self.ollama_model)
+        output_dir_var = tk.StringVar(value=self.output_directory)
+        initiator_var = tk.StringVar(value=self.initiator)
+        
         def show_provider_fields(event=None):
             for widget in config_frame.winfo_children():
                 widget.destroy()
@@ -308,11 +361,13 @@ class ZetaProposerGUI:
                 ttk.Entry(config_frame, textvariable=ollama_url_var, width=50).pack(fill=tk.X, pady=(0, 5))
                 ttk.Label(config_frame, text="Model:").pack(anchor=tk.W)
                 ttk.Entry(config_frame, textvariable=ollama_model_var, width=50).pack(fill=tk.X, pady=(0, 5))
+        
         ai_provider_combo.bind("<<ComboboxSelected>>", show_provider_fields)
         show_provider_fields()
 
         # Document template selection
-        ttk.Label(frame, text="Document Template auswählen:").pack(anchor=tk.W)
+        ttk.Label(scrollable_frame, text="Document Template auswählen:").pack(anchor=tk.W)
+        
         def get_valid_templates():
             valid_files = []
             valid_names = []
@@ -365,10 +420,12 @@ class ZetaProposerGUI:
                 except Exception as e:
                     print(f"[TEMPLATE-DEBUG] ERROR: {f} - {e}")
             return valid_files, valid_names
+        
         template_files, template_names = get_valid_templates()
         self.template_var = tk.StringVar(value=self.selected_template or (template_names[0] if template_names else ""))
-        template_combo = ttk.Combobox(frame, textvariable=self.template_var, values=template_names, state="readonly")
+        template_combo = ttk.Combobox(scrollable_frame, textvariable=self.template_var, values=template_names, state="readonly")
         template_combo.pack(fill=tk.X, pady=(0, 20))
+        
         def refresh_templates():
             files, names = get_valid_templates()
             template_combo["values"] = names
@@ -379,19 +436,44 @@ class ZetaProposerGUI:
             # Update the template_files and template_names in the enclosing scope
             nonlocal template_files, template_names
             template_files, template_names = files, names
-        refresh_btn = ttk.Button(frame, text="Templates aktualisieren", command=refresh_templates)
+        
+        refresh_btn = ttk.Button(scrollable_frame, text="Templates aktualisieren", command=refresh_templates)
         refresh_btn.pack(pady=(0, 10))
+        
+        # Output directory setting
+        ttk.Label(scrollable_frame, text="Ausgabeverzeichnis:").pack(anchor=tk.W, pady=(15,0))
+        output_dir_frame = ttk.Frame(scrollable_frame)
+        output_dir_frame.pack(fill=tk.X, pady=(0, 10))
+        output_dir_entry = ttk.Entry(output_dir_frame, textvariable=output_dir_var, width=40)
+        output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        def browse_output_dir():
+            dir_path = filedialog.askdirectory(title="Ausgabeverzeichnis auswählen", initialdir=output_dir_var.get())
+            if dir_path:
+                output_dir_var.set(dir_path)
+        
+        browse_btn = ttk.Button(output_dir_frame, text="Durchsuchen", command=browse_output_dir)
+        browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        
         # Akzeptanzschwellen-Slider
-        ttk.Label(frame, text="Akzeptanzschwelle für inhaltliche Übereinstimmung (0.3 = locker, 1.0 = sehr streng):").pack(anchor=tk.W, pady=(15,0))
+        ttk.Label(scrollable_frame, text="Akzeptanzschwelle für inhaltliche Übereinstimmung (0.3 = locker, 1.0 = sehr streng):").pack(anchor=tk.W, pady=(15,0))
         threshold_var = tk.DoubleVar(value=self.alignment_threshold)
-        threshold_label = ttk.Label(frame, text=f"Aktueller Wert: {threshold_var.get():.2f}")
+        threshold_label = ttk.Label(scrollable_frame, text=f"Aktueller Wert: {threshold_var.get():.2f}")
         threshold_label.pack(anchor=tk.W)
+        
         def on_slider_change(val):
             threshold_label.config(text=f"Aktueller Wert: {float(val):.2f}")
-        threshold_slider = ttk.Scale(frame, from_=0.3, to=1.0, orient=tk.HORIZONTAL, variable=threshold_var, command=on_slider_change)
-        threshold_slider.pack(fill=tk.X, pady=(0, 10))
+        
+        threshold_slider = ttk.Scale(scrollable_frame, from_=0.3, to=1.0, orient=tk.HORIZONTAL, variable=threshold_var, command=on_slider_change)
+        threshold_slider.pack(fill=tk.X, pady=(0, 20))
+        
+        # Initiator setting
+        ttk.Label(scrollable_frame, text="Initiator (optional):").pack(anchor=tk.W, pady=(15,0))
+        ttk.Label(scrollable_frame, text="Name/Abteilung des Veranlassers (wird als Suffix an Dateinamen angehängt):", font=("Arial", 8)).pack(anchor=tk.W)
+        initiator_entry = ttk.Entry(scrollable_frame, textvariable=initiator_var, width=40)
+        initiator_entry.pack(fill=tk.X, pady=(0, 20))
+
         def save_settings():
-            self.selected_template = None
             # Save document template
             # Always use the latest template_files/names
             files, names = get_valid_templates()
@@ -403,6 +485,9 @@ class ZetaProposerGUI:
                     self.word_generator.set_template(self.selected_template)
                     if hasattr(self, 'logger') and self.logger:
                         self.logger.info("Template set in word generator: %s", self.selected_template)
+            else:
+                self.selected_template = None
+            
             provider = self.ai_provider_var.get()
             if provider == "openai":
                 self.openai_api_key = openai_api_key_var.get()
@@ -414,10 +499,25 @@ class ZetaProposerGUI:
                 self.ollama_model = ollama_model_var.get()
                 os.environ["OLLAMA_URL"] = self.ollama_url
                 os.environ["OLLAMA_MODEL"] = self.ollama_model
+            
             self.alignment_threshold = float(threshold_var.get())
+            self.output_directory = output_dir_var.get()
+            self.initiator = initiator_var.get()
             self.save_config()
+            # Reinitialize services with new output directory
+            self._reinitialize_services()
             settings_window.destroy()
-        ttk.Button(frame, text="Speichern", command=save_settings).pack()
+        
+        # Save button
+        save_btn = ttk.Button(scrollable_frame, text="Speichern", command=save_settings)
+        save_btn.pack(pady=(20, 0))
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Configure canvas scrolling
+        settings_window.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
     def load_from_file(self):
         """Load project description from file"""
@@ -448,7 +548,8 @@ class ZetaProposerGUI:
                 self.logger.warning("No project name provided")
             messagebox.showwarning("Warning", "Please enter a project name.")
             return
-        
+        upwork_link = self.upwork_link_var.get().strip()
+        # upwork_link ist jetzt wirklich optional, keine Prüfung auf Platzhalter mehr
         description = self.description_text.get("1.0", tk.END).strip()
         if not description:
             if hasattr(self, 'logger') and self.logger:
@@ -467,7 +568,7 @@ class ZetaProposerGUI:
         if hasattr(self, 'logger') and self.logger:
             self.logger.info("Starting generation thread")
         # Start generation in a separate thread
-        thread = threading.Thread(target=self._generate_concept_thread, args=(description, project_name))
+        thread = threading.Thread(target=self._generate_concept_thread, args=(description, project_name, upwork_link))
         thread.daemon = True
         thread.start()
 
@@ -481,7 +582,7 @@ class ZetaProposerGUI:
         self.progress_var.set("Cancelled")
         self.status_var.set("Generation cancelled")
 
-    def _generate_concept_thread(self, description, project_name):
+    def _generate_concept_thread(self, description, project_name, upwork_link):
         """Generate concept in a separate thread"""
         if hasattr(self, 'logger') and self.logger:
             self.logger.info("Generation thread started")
@@ -547,35 +648,20 @@ class ZetaProposerGUI:
                 self.logger.info("AI concept generation completed")
                 self.logger.info("Generated sections: %s", list(concept.get('sections', {}).keys()))
             
-            # Update GUI
-            self.root.after(0, lambda: self.progress_var.set("Creating diagrams..."))
-            self.root.after(0, lambda: self.status_var.set("Creating diagrams..."))
-            
-            # Create diagrams
-            if hasattr(self, 'logger') and self.logger:
-                self.logger.info("Extracting diagram infos from concept result")
-            diagram_infos = []
-            for section_key, section_data in concept.get('sections', {}).items():
-                if 'png_path' in section_data:
-                    diagram_infos.append({
-                        'section': section_key,
-                        'dot': section_data.get('dot_code', ''),
-                        'png_path': section_data['png_path']
-                    })
-            if hasattr(self, 'logger') and self.logger:
-                self.logger.info("Diagram info extraction completed. Found %d diagrams", len(diagram_infos))
-            
-            if self.cancel_requested:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.info("Generation cancelled during diagram creation")
-                return
+
                 
             # Use manually entered project name
             if hasattr(self, 'logger') and self.logger:
                 self.logger.info(f"Using manually entered project name: {project_name}")
 
-            # Word-Dokument erzeugen, Projektname und Datum als Parameter übergeben
-            docx_path = self.word_generator.create_document(concept, diagram_infos, project_name=project_name)
+            # Word-Dokument erzeugen, Projektname, Datum und Initiator als Parameter übergeben
+            docx_path = self.word_generator.create_document(
+                concept, 
+                project_name=project_name, 
+                initiator=self.initiator,
+                upwork_link=upwork_link,
+                description=description
+            )
             if hasattr(self, 'logger') and self.logger:
                 self.logger.info("Word document created: %s", docx_path)
             # Öffne das erzeugte docx automatisch
@@ -652,7 +738,7 @@ class ZetaProposerGUI:
         
         try:
             # Create PDF output directory
-            pdf_output_dir = Path("output") / "pdf"
+            pdf_output_dir = Path(self.output_directory) / "pdf"
             pdf_output_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate PDF filename
@@ -676,46 +762,13 @@ class ZetaProposerGUI:
                 except Exception as e:
                     if hasattr(self, 'logger') and self.logger:
                         self.logger.warning("COM initialization failed: %s", str(e))
-            
-            # Convert using docx2pdf
-            try:
-                convert(docx_path, str(pdf_path))
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.info("PDF conversion successful: %s", pdf_path)
-                return str(pdf_path)
-            except Exception as convert_error:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.error("docx2pdf conversion failed: %s", str(convert_error))
-                
-                # Fallback: try using alternative method
-                try:
-                    from docx2pdf import convert as convert_alt
-                    convert_alt(docx_path, str(pdf_path))
-                    if hasattr(self, 'logger') and self.logger:
-                        self.logger.info("PDF conversion successful with fallback: %s", pdf_path)
-                    return str(pdf_path)
-                except Exception as fallback_error:
-                    if hasattr(self, 'logger') and self.logger:
-                        self.logger.error("Fallback PDF conversion also failed: %s", str(fallback_error))
-                    raise convert_error  # Re-raise the original error
-            
+            # PDF conversion is optional and skipped if docx2pdf is not installed
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info("PDF conversion skipped (docx2pdf not installed)")
+            return None
         except Exception as e:
             if hasattr(self, 'logger') and self.logger:
                 self.logger.error("PDF conversion failed: %s", str(e))
-            
-            # Provide more helpful error information
-            error_msg = str(e)
-            if "CoInitialize" in error_msg:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.error("COM initialization error. This is a Windows-specific issue.")
-                    self.logger.error("Try running the application as administrator or restart the application.")
-            elif "Word" in error_msg or "Office" in error_msg:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.error("Microsoft Word/Office error. Ensure Word is installed and not running.")
-            else:
-                if hasattr(self, 'logger') and self.logger:
-                    self.logger.error("Unknown PDF conversion error. Check if Word is installed and accessible.")
-            
             raise
 
     def show_last_log(self):
@@ -748,6 +801,22 @@ class ZetaProposerGUI:
             self.log_widget.insert(tk.END, message + "\n")
             self.log_widget.see(tk.END)
             self.log_widget.config(state="disabled")
+
+    def toggle_log(self):
+        if self.log_visible:
+            if self.log_label:
+                self.log_label.grid_remove()
+            if self.log_widget:
+                self.log_widget.grid_remove()
+            self.toggle_log_btn.config(text="Log anzeigen")
+            self.log_visible = False
+        else:
+            if self.log_label:
+                self.log_label.grid(row=7, column=0, sticky=tk.W, pady=(10, 0))
+            if self.log_widget:
+                self.log_widget.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+            self.toggle_log_btn.config(text="Log ausblenden")
+            self.log_visible = True
 
 def main():
     root = tk.Tk()

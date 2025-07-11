@@ -44,7 +44,7 @@ python main.py
 1. Installieren Sie Ollama von [https://ollama.ai](https://ollama.ai)
 2. Starten Sie den Ollama-Service: `ollama serve`
 3. Laden Sie ein Modell: `ollama pull llama3`
-4. In der GUI: Wählen Sie "Ollama" als Provider
+4. In der GUI: Wählen Sie "Ollama" als Provider (Standard: llama3)
 5. Klicken Sie auf "Speichern"
 
 **Hinweis**: Ollama bietet Datenschutz durch lokale Ausführung, aber die Ergebnisse sind qualitativ schlechter als OpenAI.
@@ -68,9 +68,10 @@ python main.py
 
 ### Schritt 3: KI-Provider wählen
 
-- **OpenAI GPT-4**: Beste Qualität (empfohlen)
+- **OpenAI GPT-4o**: Beste Qualität (Standard, empfohlen)
+- **OpenAI GPT-4**: Alternative OpenAI Option
 - **OpenAI GPT-3.5**: Schneller, günstiger
-- **Ollama (lokal)**: Datenschutz, aber geringere Qualität
+- **Ollama (lokal)**: Datenschutz, aber geringere Qualität (Standard: llama3)
 
 ### Schritt 4: Generierung starten
 

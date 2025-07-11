@@ -9,9 +9,6 @@ python-docx
 pywin32
 pywin32-ctypes
 
-# Image processing for diagrams
-Pillow
-
 # Configuration management
 python-dotenv
 
@@ -19,8 +16,4 @@ python-dotenv
 colorama
 
 # Future: File automation
-watchdog
-
-# Diagrams
-diagrams 
-graphviz>=0.20 
+watchdog 
